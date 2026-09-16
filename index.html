@@ -392,6 +392,8 @@ input[type=range]{width:100%;accent-color:var(--route)}
   </div>
 </div>
 <div class="jfull" id="jfull" role="dialog" aria-modal="true" aria-label="Enlarged MRT map" hidden></div>
+<!-- Bus data: fetch_bus_data.py --embed index.html fills the tag below -->
+<script type="application/json" id="busdata"></script>
 <div class="jfull busfull" id="busfull" role="dialog" aria-modal="true" aria-label="Bus arrivals" hidden></div>
 <script>
 (function(){
@@ -890,7 +892,7 @@ function stationsPanel(leg, pos){
   const nextSt = P.slice(pos.i+1).find(p => p.station);
   const summary = `<div class="stsum">${leg.segments.map(s => lineBadge(LINES[s.line].code)).join("")}
       <span><b>${esc(leg.board)}</b> to <b>${esc(leg.alight)}</b> · ${leg.stops} stop${leg.stops>1?"s":""}${leg.segments.length>1?` · ${leg.segments.length-1} change`:""}</span></div>
-      ${nextSt ? `<div class="meta" style="margin-top:4px">Next station: <b style="color:var(--ink)">${esc(nextSt.station)}</b></div>` : `<div class="meta" style="margin-top:4px">You've left the ${leg.mode === "bus" ? "bus" : "station"}</div>`}`;
+      ${nextSt ? `<div class="meta" style="margin-top:4px">Next ${leg.mode === "bus" ? "stop" : "station"}: <b style="color:var(--ink)">${esc(nextSt.station)}</b></div>` : `<div class="meta" style="margin-top:4px">You've left the ${leg.mode === "bus" ? "bus" : "station"}</div>`}`;
   let list = "";
   if (S.showStations){
     const rows = P.map((p,idx) => ({p,idx})).filter(o => o.p.station);
@@ -988,6 +990,17 @@ function viewSettings(){
     <div class="row"><div><b>Singapore Central + MRT network</b><div class="meta">52 MB · downloaded</div></div><span class="tag why">Ready</span></div>
   </div>
   <div class="panel">
+    <h3>Bus data</h3>
+    ${BUSDATA
+      ? `<div class="row"><div><b>Real LTA bus routes</b><div class="meta">${BUSDATA.stops.size.toLocaleString()} stops · ${BUSDATA.routes.length.toLocaleString()} service directions · ${esc(BUSDATA.generated)} · from ${esc(BUSDATA.source)}</div></div><span class="tag why">Active</span></div>
+         <div class="meta" style="margin-top:6px">Arrival times are still simulated.</div>`
+      : `<div class="row"><div><b>Simulated buses</b><div class="meta">Add busdata.json from fetch_bus_data.py to use real routes and stops.</div></div><span class="tag rain">Demo</span></div>`}
+    <div class="btns" style="margin-top:10px">
+      <label class="ghost" style="cursor:pointer">Load bus data file<input type="file" id="busFile" accept=".json,application/json" hidden></label>
+      ${BUSDATA && BUSDATA.source !== "embedded" && BUSDATA.source !== "busdata.json" ? `<button class="ghost" id="busClear">Use simulated buses</button>` : ""}
+    </div>
+  </div>
+  <div class="panel">
     <h3>Connected devices</h3>
     <div class="row"><div><b>Apple Watch Series 10</b><div class="meta">Connected via Bluetooth</div></div><span class="tag indoor">Paired</span></div>
   </div>`;
@@ -1003,6 +1016,7 @@ function rng(seed){ let h = (hash(seed) % 2147483646) + 1; return () => (h = (h 
 function nearestStation(x, y){ let best = null, bd = Infinity; for (const n in STATIONS){ const d = Math.hypot(STATIONS[n][0]-x, STATIONS[n][1]-y); if (d < bd){ bd = d; best = n; } } return best; }
 /* a, b: {x, y, name, station} */
 function busOptions(a, b, seedKey){
+  if (BUSDATA) return realBusOptions(a, b, seedKey);
   const d = dist(a, b);
   if (d < 45) return [];
   const R = rng(seedKey), used = new Set(), out = [];
@@ -1054,17 +1068,21 @@ function busPanel(a, b, mrtTotal){
     opts.forEach(o => { o.arrMs = o.arrivals.map(m => now + m*60000 + Math.floor(Math.random()*40000)); });
     busLive.set(key, opts);
   }
-  const opts = busLive.get(key);
-  const head = `<div class="row"><h3 style="margin:0">Bus alternatives</h3><span class="tag ${S.offline ? "rain" : "why"}" style="margin:0">${S.offline ? "Offline · scheduled" : "Live · simulated"}</span></div>`;
-  if (!opts.length) return `<div class="panel">${head}<div class="meta" style="margin-top:6px">These stations are close together, so walking beats waiting for a bus.</div></div>`;
+  const all = busLive.get(key), nowT = Date.now();
+  /* hide buses that take far longer than the train */
+  const opts = BUSDATA ? all.filter(o => busTimes(o, nowT).total <= Math.max(mrtTotal*3, mrtTotal + 45)) : all;
+  const head = `<div class="row"><h3 style="margin:0">Bus alternatives</h3><span class="tag ${S.offline ? "rain" : "why"}" style="margin:0">${busTag()}</span></div>`;
+  if (!opts.length && all.length) return `<div class="panel">${head}<div class="meta" style="margin-top:6px">Buses here take much longer than the MRT (over ${Math.max(mrtTotal*3, mrtTotal + 45)} min), so the train is the better choice.</div></div>`;
+  if (!opts.length) return `<div class="panel">${head}<div class="meta" style="margin-top:6px">${dist({x:STATIONS[a][0], y:STATIONS[a][1]}, {x:STATIONS[b][0], y:STATIONS[b][1]}) < 45 ? "These stations are close together, so walking beats waiting for a bus." : "No bus goes between these stops without more than one change. The MRT is the better choice here."}</div></div>`;
   const now = Date.now();
-  const sorted = opts.map((o, i) => ({o, i, t:busTimes(o, now)})).sort((x, y) => x.t.total - y.t.total);
+  const sorted = opts.map(o => ({o, i: all.indexOf(o), t:busTimes(o, now)})).sort((x, y) => x.t.total - y.t.total);
   const cards = sorted.map(({o, i, t}) => {
     const route = o.legs.map((l, j) => `${j ? ` <span class="meta">→ change at ${esc(l.board)} →</span> ` : ""}${busBadge(l.svc)}`).join("");
     const L0 = o.legs[0], Ln = o.legs[o.legs.length-1];
     return `<div class="buscard" data-bus-card="${esc(key)}" data-bus-i="${i}" data-mrt="${mrtTotal}" role="button" tabindex="0" aria-label="View arrival times for bus ${esc(L0.svc)} at ${esc(L0.board)}">
       <div class="row"><div>${route}</div><div class="bustotal"><b data-bus-total>${t.total}</b> min</div></div>
-      <div class="meta" style="margin-top:4px">Walk ${o.walkIn} min to <b style="color:var(--ink)">${esc(L0.board)}</b> · ${o.legs.reduce((s, l) => s + l.stops, 0)} stops · get off at <b style="color:var(--ink)">${esc(Ln.alight)}</b>, walk ${o.walkOut} min</div>
+      ${L0.dest ? `<div class="meta" style="margin-top:2px">${o.legs.map(l => `Bus ${esc(l.svc)} towards ${esc(l.dest)}`).join(", then ")}</div>` : ""}
+      <div class="meta" style="margin-top:4px">Walk ${o.walkIn} min to <b style="color:var(--ink)">${esc(L0.board)}</b>${L0.boardCode && !L0.board.includes(L0.boardCode) ? ` (${L0.boardCode})` : ""} · ${o.legs.reduce((s, l) => s + l.stops, 0)} stops · get off at <b style="color:var(--ink)">${esc(Ln.alight)}</b>, walk ${o.walkOut} min</div>
       <div class="busarr">${t.mins.map((m, j) => `<span data-bus-arr="${j}" class="${j < t.catchIdx ? "miss" : j === t.catchIdx ? "catch" : ""}">${arrLabel(m)}</span>`).join("")}</div>
       <div class="meta" style="margin-top:6px">${o.deck} · <span style="color:${BUS_LOADS[o.load].c};font-weight:700">${BUS_LOADS[o.load].t}</span> · S$${o.fare.toFixed(2)}</div>
       <div class="row"><div class="buscmp" data-bus-cmp>${cmpText(t.total, mrtTotal)}</div><span class="busview">View arrivals ›</span></div>
@@ -1074,7 +1092,7 @@ function busPanel(a, b, mrtTotal){
     <div class="meta" style="margin:4px 0 8px">Next buses at each stop. Struck-out times leave before you can walk there; the highlighted bus is the one you'd catch. Tap a bus or a stop to see all arrival timings.</div>
     <div class="stopchips">${[...new Set(opts.map(o => o.legs[0].board))].map(st => `<button class="stopchip" data-stop-open="${esc(st)}">🚏 ${esc(st)}</button>`).join("")}</div>
     ${cards}
-    <div class="meta" style="margin-top:8px">Bus services, stops and arrival times are simulated for this prototype. A real app would use LTA DataMall's live Bus Arrival data.</div></div>`;
+    <div class="meta" style="margin-top:8px">${busNote()}</div></div>`;
 }
 const cmpText = (bus, mrt) => bus < mrt ? `${mrt - bus} min faster than MRT` : bus === mrt ? "Same as MRT" : `${bus - mrt} min slower than MRT`;
 function updateBusTimes(){
@@ -1090,6 +1108,165 @@ function updateBusTimes(){
     });
   });
 }
+
+/* ---------- Added: real bus routes from LTA DataMall (busdata.json made by fetch_bus_data.py) ---------- */
+/* Same projection as the MRT map: ~35 map units per km, anchored on Raffles Place */
+const PROJ = {lon0:103.8515, lat0:1.2840, kx:111.32*Math.cos(1.35*Math.PI/180)*35, ky:110.57*35};
+const projLL = (lat, lon) => ({x: 178 + (lon - PROJ.lon0)*PROJ.kx, y: 148 + (PROJ.lat0 - lat)*PROJ.ky});
+let BUSDATA = null;
+const BUS_CELL = 40, BUS_WALK_R = 30;  /* 30 units is roughly 850 m */
+function initBusData(raw, source){
+  if (!raw || typeof raw.stops !== "object" || typeof raw.routes !== "object") throw new Error("This isn't a bus data file from fetch_bus_data.py");
+  const stops = new Map(), grid = new Map(), byName = new Map(), descCount = {};
+  for (const code in raw.stops){ const d = raw.stops[code][0]; descCount[d] = (descCount[d] || 0) + 1; }
+  for (const code in raw.stops){
+    const [desc, road, lat, lon] = raw.stops[code];
+    if (!lat || !lon) continue;
+    const p = projLL(lat, lon);
+    const name = descCount[desc] > 1 ? `${desc} (${code})` : desc;
+    const st = {code, name, road, x:p.x, y:p.y, svcs:[]};
+    stops.set(code, st); byName.set(name, code);
+    const k = Math.floor(p.x/BUS_CELL) + "," + Math.floor(p.y/BUS_CELL);
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(st);
+  }
+  const routes = [];
+  for (const key in raw.routes){
+    const [codes0, dists0] = raw.routes[key];
+    const codes = [], dists = [];
+    codes0.forEach((c, i) => { if (stops.has(c)){ codes.push(c); dists.push(+dists0[i] || 0); } });
+    if (codes.length < 2) continue;
+    const [svc, dir] = key.split("|");
+    const info = (raw.services || {})[key] || [];
+    const fm = String(info[2] || "").match(/(\d+)(?:-(\d+))?/);
+    const gap = fm ? Math.max(3, Math.round((+fm[1] + +(fm[2] || fm[1]))/2)) : 10;
+    const rt = {svc, dir, codes, dists, gap, op:info[0] || "", dest: stops.get(codes[codes.length-1]).name};
+    routes.push(rt);
+    codes.forEach((c, i) => stops.get(c).svcs.push([rt, i]));
+  }
+  if (!stops.size || !routes.length) throw new Error("The bus data file is empty");
+  BUSDATA = {stops, grid, byName, routes, generated: raw.generated || "", source};
+  busLive.clear(); stopBoards.clear();
+  return BUSDATA;
+}
+function nearStops(x, y, r){
+  const out = [], cx = Math.floor(x/BUS_CELL), cy = Math.floor(y/BUS_CELL), n = Math.ceil(r/BUS_CELL);
+  for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++){
+    for (const st of BUSDATA.grid.get((cx+i) + "," + (cy+j)) || []){
+      const d = Math.hypot(st.x - x, st.y - y);
+      if (d <= r) out.push({st, d});
+    }
+  }
+  return out.sort((a, b) => a.d - b.d);
+}
+const busRideMin = (km, n) => km*3.2 + n*0.35;   /* about 19 km/h plus time at stops */
+function realBusOptions(a, b, seedKey){
+  const D = BUSDATA;
+  if (dist(a, b) < 45) return [];
+  const orig = nearStops(a.x, a.y, BUS_WALK_R).slice(0, 20);
+  const dest = new Map(nearStops(b.x, b.y, BUS_WALK_R).map(o => [o.st.code, o.d]));
+  if (!orig.length || !dest.size) return [];
+  const found = new Map();  /* one best option per service combination */
+  const keep = (sig, opt) => { const cur = found.get(sig); if (!cur || opt.t < cur.t) found.set(sig, opt); };
+  const segKm = (rt, i, j) => Math.max(0.2, rt.dists[j] - rt.dists[i]) || (j - i)*0.4;
+
+  for (const o of orig){
+    const wA = walkMin(o.d);
+    for (const [rt, i] of o.st.svcs){
+      let best = null;
+      for (let j = i+1; j < rt.codes.length && j <= i+90; j++){
+        const wd = dest.get(rt.codes[j]); if (wd === undefined) continue;
+        const t = wA + busRideMin(segKm(rt, i, j), j-i) + walkMin(wd);
+        if (!best || t < best.t) best = {t, j, wd};
+      }
+      if (best) keep(rt.svc + ">" + rt.dir, {t:best.t, wA, wB:best.wd, legs:[{rt, i, j:best.j}]});
+    }
+  }
+  if (found.size < 2){
+    const reach = new Map();
+    for (const o of orig.slice(0, 10)){
+      const wA = walkMin(o.d);
+      for (const [rt, i] of o.st.svcs){
+        for (let j = i+1; j < rt.codes.length && j <= i+40; j++){
+          const t = wA + busRideMin(segKm(rt, i, j), j-i), c = rt.codes[j], cur = reach.get(c);
+          if (!cur || t < cur.t) reach.set(c, {t, wA, rt, i, j});
+        }
+      }
+    }
+    for (const [c, r1] of reach){
+      for (const [rt2, k] of D.stops.get(c).svcs){
+        if (rt2.svc === r1.rt.svc) continue;
+        for (let m = k+1; m < rt2.codes.length && m <= k+60; m++){
+          const wd = dest.get(rt2.codes[m]); if (wd === undefined) continue;
+          const t = r1.t + 5 + busRideMin(segKm(rt2, k, m), m-k) + walkMin(wd);
+          keep(r1.rt.svc + ">" + rt2.svc, {t, wA:r1.wA, wB:wd, legs:[{rt:r1.rt, i:r1.i, j:r1.j}, {rt:rt2, i:k, j:m}]});
+          break;
+        }
+      }
+    }
+  }
+  const R = rng(seedKey);
+  return [...found.values()].sort((x, y) => x.t - y.t).slice(0, 3).map(f => {
+    const legs = f.legs.map(({rt, i, j}) => {
+      const s0 = D.stops.get(rt.codes[i]), s1 = D.stops.get(rt.codes[j]);
+      return {svc:rt.svc, dir:rt.dir, dest:rt.dest, board:s0.name, alight:s1.name, boardCode:s0.code, alightCode:s1.code,
+        stops:j-i, ride:Math.round(busRideMin(segKm(rt, i, j), j-i)), km:+segKm(rt, i, j).toFixed(1),
+        codes:rt.codes.slice(i+1, j+1), boardXY:{x:s0.x, y:s0.y}, alightXY:{x:s1.x, y:s1.y}, gap:rt.gap};
+    });
+    const gap = legs[0].gap, first = 1 + Math.floor(R()*Math.min(12, gap + 2));
+    const km = legs.reduce((t, l) => t + l.km, 0);
+    return {real:true, legs, mid: legs.length > 1 ? legs[1].boardXY : null,
+      walkIn: walkMin(0) + Math.round(f.wA - walkMin(0)), walkOut: Math.round(f.wB === undefined ? 2 : walkMin(f.wB)), gap,
+      rideTotal: legs.reduce((t, l) => t + l.ride, 0) + (legs.length > 1 ? 5 : 0),
+      arrivals: [first, first + gap, first + 2*gap + Math.floor(R()*4)],
+      load: Math.floor(R()*3), deck: BUS_DECKS[Math.floor(R()*2)], fare: 0.99 + km*0.07};
+  });
+}
+function realStopBoard(stopName, code){
+  const st = BUSDATA.stops.get(code), R = rng("S" + code), now = Date.now(), list = [], seen = new Set();
+  for (const [rt, i] of st.svcs){
+    if (i === rt.codes.length - 1) continue;           /* bus ends here */
+    const id = rt.svc + "|" + rt.dest; if (seen.has(id)) continue; seen.add(id);
+    const gap = rt.gap, first = Math.floor(R()*(gap + 3));
+    list.push({svc:rt.svc, gap, dest:rt.dest, route:rt, idx:i,
+      arrMs: [first, first+gap, first+2*gap+Math.floor(R()*4)].map(m => now + m*60000 + Math.floor(R()*50000)),
+      loads: [0,1,2].map(() => Math.floor(R()*3)), decks: [0,1,2].map(() => Math.floor(R()*3)), wab: R() > .05});
+  }
+  return {stop: stopName, code, road: st.road, real:true, list};
+}
+const busTag = () => S.offline ? "Offline · scheduled" : BUSDATA ? "Real routes · simulated times" : "Live · simulated";
+const busNote = () => BUSDATA
+  ? `Bus routes and stops: LTA DataMall (data from ${esc(BUSDATA.generated || "your download")}). Arrival times, crowding and fares are simulated; live times need LTA's Bus Arrival API.`
+  : "Bus services, stops and arrival times are simulated for this prototype. A real app would use LTA DataMall's live Bus Arrival data.";
+async function loadBusData(){
+  const tag = document.getElementById("busdata");
+  if (tag && tag.textContent.trim().length > 2){
+    try { initBusData(JSON.parse(tag.textContent), "embedded"); render(); return; } catch (e) { console.warn("Embedded bus data unreadable", e); }
+  }
+  try {
+    const r = await fetch("busdata.json", {cache:"no-cache"});
+    if (r.ok){ initBusData(await r.json(), "busdata.json"); render(); return; }
+  } catch (e) { /* no file next to the page: fall back */ }
+  try {
+    const t = localStorage.getItem("stc-busdata");
+    if (t){ initBusData(JSON.parse(t), "saved upload"); render(); }
+  } catch (e) { /* storage unavailable */ }
+}
+function loadBusFile(file){
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const raw = JSON.parse(fr.result);
+      initBusData(raw, "uploaded file");
+      let saved = true;
+      try { localStorage.setItem("stc-busdata", fr.result); } catch (e) { saved = false; }
+      toast("Real bus routes loaded", `${BUSDATA.stops.size} stops · ${BUSDATA.routes.length} routes${saved ? "" : " (this session only)"}`, "🚌");
+    } catch (e) { toast("Couldn't load that file", e.message, "!"); }
+    render();
+  };
+  fr.readAsText(file);
+}
+
 setInterval(updateBusTimes, 1000);
 
 /* ---------- Added: bus arrival board (tap to view) ---------- */
@@ -1098,6 +1275,7 @@ function rollArr(svc, now){
   while (svc.arrMs[0] < now - 30000){ svc.arrMs.shift(); svc.arrMs.push(svc.arrMs[svc.arrMs.length-1] + svc.gap*60000); svc.rolls = (svc.rolls||0) + 1; }
 }
 function stopBoard(stopName){
+  if (!stopBoards.has(stopName) && BUSDATA && BUSDATA.byName.has(stopName)) stopBoards.set(stopName, realStopBoard(stopName, BUSDATA.byName.get(stopName)));
   if (!stopBoards.has(stopName)){
     const R = rng("S" + stopName), now = Date.now(), used = new Set(), list = [];
     const names = Object.keys(STATIONS);
@@ -1116,7 +1294,8 @@ function stopBoard(stopName){
 /* Make sure the service the user tapped is on the board, sharing the same live times as its card */
 function focusService(board, o, leg){
   let item = board.list.find(x => x.svc === leg.svc);
-  if (!item){ item = {svc:leg.svc, dest: leg.alight.replace(/^(Opp |Near )/, "").replace(/ Stn( Exit [A-D])?$/, "") + " Int", loads:[o.load, (o.load+1)%3, o.load], decks:[BUS_DECKS.indexOf(o.deck),0,1].map(v => Math.max(0,v)), wab:true}; board.list.unshift(item); }
+  if (!item && leg.dest) item = board.list.find(x => x.svc === leg.svc && x.dest === leg.dest);
+  if (!item){ item = {svc:leg.svc, dest: leg.dest ? leg.dest : leg.alight.replace(/^(Opp |Near )/, "").replace(/ Stn( Exit [A-D])?$/, "") + " Int", loads:[o.load, (o.load+1)%3, o.load], decks:[BUS_DECKS.indexOf(o.deck),0,1].map(v => Math.max(0,v)), wab:true}; board.list.unshift(item); }
   item.arrMs = o.arrMs; item.gap = o.gap;
   return item;
 }
@@ -1139,7 +1318,7 @@ function openBusView(stop, svc, focus){
     const {o, leg, a, b} = focus;
     if (!o.arrMs){ const now = Date.now(); o.arrMs = o.arrivals.map(m => now + m*60000); }
     focusService(board, o, leg);
-    S.busView.route = {svc: leg.svc, names: a && b ? routeStops(a, b, leg.stops, stop + leg.svc).concat(leg.alight) : null, ride: leg.ride, stops: leg.stops, alight: leg.alight, walkIn: o.walkIn};
+    S.busView.route = {svc: leg.svc, names: leg.codes && BUSDATA ? leg.codes.map(c => BUSDATA.stops.get(c).name) : a && b ? routeStops(a, b, leg.stops, stop + leg.svc).concat(leg.alight) : null, ride: leg.ride, stops: leg.stops, alight: leg.alight, walkIn: o.walkIn};
   }
   S.busView.updated = Date.now();
   renderBusView(true);
@@ -1199,7 +1378,7 @@ function renderBusView(resetScroll){
     </div>
     <div class="busbody" id="busBody">
       <div class="row" style="margin-top:12px;margin-bottom:8px">
-        <span class="tag ${S.offline ? "rain" : "why"}" style="margin:0">${S.offline ? "Offline · scheduled times" : "Live · simulated"}</span>
+        <span class="tag ${S.offline ? "rain" : "why"}" style="margin:0">${busTag()}</span>
         <span class="meta" id="busUpdated">Updated just now</span>
       </div>
       <div class="bslist" role="group" aria-label="Services at this stop">${rows}</div>
@@ -1209,7 +1388,7 @@ function renderBusView(resetScroll){
         <button class="ghost" id="busRefresh">↻ Refresh</button>
         <button class="primary" id="busWatch" style="width:auto;padding:10px 14px">⌚ Show on watch</button>
       </div>
-      <p class="meta">Services, stop codes and times are simulated for this prototype. A real app would read LTA DataMall's Bus Arrival data for this stop.</p>
+      <p class="meta">${busNote()}</p>
     </div>`;
   const body = $("#busBody"); body.scrollTop = keep;
   $("#busClose").onclick = closeBusView;
@@ -1253,9 +1432,9 @@ function busLeg(A, B, o, total, wait){
   o.legs.forEach(l => { const k = "BUS" + l.svc; if (!LINES[k]) LINES[k] = {name:`Bus ${l.svc}`, code:l.svc, color:BUS_COLOR, bus:true, stations:[]}; });
   const last = o.legs.length - 1;
   const pts = [{x:A.x, y:A.y, label:A.name, role:"origin", departSeg:-1},
-               {x:A.x+5, y:A.y+4, label:o.legs[0].board, station:o.legs[0].board, role:"board", arriveSeg:-1, departSeg:0}];
-  if (last > 0) pts.push({x:o.mid.x+4, y:o.mid.y+4, label:o.legs[0].alight, station:o.legs[0].alight, role:"transfer", arriveSeg:0, departSeg:1});
-  pts.push({x:B.x-5, y:B.y+5, label:o.legs[last].alight, station:o.legs[last].alight, role:"alight", arriveSeg:last, departSeg:-1});
+               {x:o.legs[0].boardXY ? o.legs[0].boardXY.x : A.x+5, y:o.legs[0].boardXY ? o.legs[0].boardXY.y : A.y+4, label:o.legs[0].board, station:o.legs[0].board, role:"board", arriveSeg:-1, departSeg:0}];
+  if (last > 0) pts.push({x:o.mid.x+(o.real ? 0 : 4), y:o.mid.y+(o.real ? 0 : 4), label:o.legs[0].alight, station:o.legs[0].alight, role:"transfer", arriveSeg:0, departSeg:1});
+  pts.push({x:o.legs[last].alightXY ? o.legs[last].alightXY.x : B.x-5, y:o.legs[last].alightXY ? o.legs[last].alightXY.y : B.y+5, label:o.legs[last].alight, station:o.legs[last].alight, role:"alight", arriveSeg:last, departSeg:-1});
   pts.push({x:B.x, y:B.y, label:B.name, role:"dest", arriveSeg:-1});
   return {mode:"bus", mins:total, cost:o.fare, points:pts, wait, opt:o, A, B,
     segments: o.legs.map(l => ({line:"BUS"+l.svc, stations:[l.board, l.alight], towards:l.alight, stops:l.stops})),
@@ -1831,6 +2010,8 @@ function bind(){
   const tl = $("#toggleLabels"); if (tl) tl.onclick = () => { S.mapLabels = !S.mapLabels; render(); };
   const ts = $("#toggleStations"); if (ts) ts.onclick = () => { S.showStations = !S.showStations; render(); };
   const so = $("#sOffline"); if (so) so.onclick = () => setOffline(!S.offline);
+  const bf = $("#busFile"); if (bf) bf.onchange = () => { if (bf.files[0]) loadBusFile(bf.files[0]); };
+  const bc = $("#busClear"); if (bc) bc.onclick = () => { BUSDATA = null; busLive.clear(); stopBoards.clear(); try { localStorage.removeItem("stc-busdata"); } catch (e) {} toast("Using simulated buses", "Real route data removed", "i"); render(); };
   const sww = $("#sWatch"); if (sww) sww.onclick = () => { S.watchAlerts = !S.watchAlerts; render(); };
 }
 
@@ -1863,6 +2044,7 @@ $("#dTheme").onclick = () => {
 $("#dReset").onclick = () => { clearInterval(timer); S = initial(); render(); };
 
 render();
+loadBusData();
 })();
 </script>
 </body>
