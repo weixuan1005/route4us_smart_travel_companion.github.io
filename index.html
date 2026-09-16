@@ -376,6 +376,7 @@ input[type=range]{width:100%;accent-color:var(--route)}
           <button class="ghost" id="dDelay">Trigger train delay</button>
           <button class="ghost" id="dBreak">Random MRT breakdown</button>
           <button class="ghost" id="dBreakMine">Break my route</button>
+          <button class="ghost" id="dBreakLrt">Random LRT breakdown</button>
           <button class="ghost" id="dCrowd">Raise crowd level</button>
           <button class="ghost" id="dOffline">Lose internet</button>
           <button class="ghost" id="dArrive">Jump to arrival</button>
@@ -388,6 +389,7 @@ input[type=range]{width:100%;accent-color:var(--route)}
         <div class="feature"><b>Personalised itineraries</b><span>Built from interests, budget, time available and the hourly forecast. Indoor stops are moved into the rain window.</span></div>
         <div class="feature live"><b>Live transit, station by station</b><span>MRT routes with every station and line change, plus crowd levels, delays and a one-tap switch to another route.</span></div>
         <div class="feature off"><b>Tracking and offline maps</b><span>Your position keeps moving on the saved map when the connection drops.</span></div>
+        <div class="feature"><b>LRT network</b><span>All Bukit Panjang, Sengkang and Punggol LRT stations on the map, LRT route ideas, and LRT breakdowns with bridging or regular bus options.</span></div>
         <div class="feature live"><b>MRT breakdown alerts</b><span>Warns you on phone and watch when a line stops, then reroutes by another MRT line, a free bridging bus or a regular bus.</span></div>
         <div class="feature live"><b>Bus alternatives</b><span>Suggests buses next to the MRT route, with simulated arrival countdowns, crowding and a Take bus option when trains are delayed.</span></div>
         <div class="feature"><b>Station-to-station times</b><span>Tap any two stations on the MRT map to see the travel time, route, line changes and fare.</span></div>
@@ -446,8 +448,25 @@ const LINES = {
   NEL:{name:"North East Line", code:"NE", color:"#9900AA", stations:["HarbourFront","Outram Park","Chinatown","Clarke Quay","Dhoby Ghaut","Little India","Farrer Park","Boon Keng","Potong Pasir","Woodleigh","Serangoon","Kovan","Hougang","Buangkok","Sengkang","Punggol","Punggol Coast"]},
   CCL:{name:"Circle Line", code:"CC", color:"#FA9E0D", loop:true, extra:[["Bayfront","Promenade"]], stations:["Dhoby Ghaut","Bras Basah","Esplanade","Promenade","Nicoll Highway","Stadium","Mountbatten","Dakota","Paya Lebar","MacPherson","Tai Seng","Bartley","Serangoon","Lorong Chuan","Bishan","Marymount","Caldecott","Botanic Gardens","Farrer Road","Holland Village","Buona Vista","one-north","Kent Ridge","Haw Par Villa","Pasir Panjang","Labrador Park","Telok Blangah","HarbourFront","Keppel","Cantonment","Prince Edward Road","Marina Bay","Bayfront"]},
   DTL:{name:"Downtown Line", code:"DT", color:"#005EC4", stations:["Bukit Panjang","Cashew","Hillview","Hume","Beauty World","King Albert Park","Sixth Avenue","Tan Kah Kee","Botanic Gardens","Stevens","Newton","Little India","Rochor","Bugis","Promenade","Bayfront","Downtown","Telok Ayer","Chinatown","Fort Canning","Bencoolen","Jalan Besar","Bendemeer","Geylang Bahru","Mattar","MacPherson","Ubi","Kaki Bukit","Bedok North","Bedok Reservoir","Tampines West","Tampines","Tampines East","Upper Changi","Expo"]},
+  /* Added: LRT lines. Loops are closed with an extra link back to the interchange */
+  BPL:{name:"Bukit Panjang LRT", code:"BP", color:"#748477", lrt:true, loop:true, extra:[["Senja","Bukit Panjang"]], stations:["Choa Chu Kang","South View","Keat Hong","Teck Whye","Phoenix","Bukit Panjang","Petir","Pending","Bangkit","Fajar","Segar","Jelapang","Senja"]},
+  SKE:{name:"Sengkang LRT (East Loop)", code:"SE", color:"#748477", lrt:true, loop:true, extra:[["Ranggung","Sengkang"]], stations:["Sengkang","Compassvale","Rumbia","Bakau","Kangkar","Ranggung"]},
+  SKW:{name:"Sengkang LRT (West Loop)", code:"SW", color:"#748477", lrt:true, loop:true, extra:[["Renjong","Sengkang"]], stations:["Sengkang","Cheng Lim","Farmway","Kupang","Thanggam","Fernvale","Layar","Tongkang","Renjong"]},
+  PGE:{name:"Punggol LRT (East Loop)", code:"PE", color:"#748477", lrt:true, loop:true, extra:[["Damai","Punggol"]], stations:["Punggol","Cove","Meridian","Coral Edge","Riviera","Kadaloor","Oasis","Damai"]},
+  PGW:{name:"Punggol LRT (West Loop)", code:"PW", color:"#748477", lrt:true, loop:true, extra:[["Soo Teck","Punggol"]], stations:["Punggol","Sam Kee","Teck Lee","Punggol Point","Samudera","Nibong","Sumang","Soo Teck"]},
   TEL:{name:"Thomson-East Coast Line", code:"TE", color:"#9D5B25", stations:["Woodlands North","Woodlands","Woodlands South","Springleaf","Lentor","Mayflower","Bright Hill","Upper Thomson","Caldecott","Stevens","Napier","Orchard Boulevard","Orchard","Great World","Havelock","Outram Park","Maxwell","Shenton Way","Marina Bay","Gardens by the Bay","Tanjong Rhu","Katong Park","Tanjong Katong","Marine Parade","Marine Terrace","Siglap","Bayshore"]}
 };
+/* Added: all LRT stations (Bukit Panjang, Sengkang, Punggol LRT); interchanges share the MRT station entry */
+Object.assign(STATIONS, {
+  "Bakau":[388,-255], "Bangkit":[-129,-224], "Cheng Lim":[342,-287], "Compassvale":[369,-280], "Coral Edge":[416,-277],
+  "Cove":[390,-299], "Damai":[400,-321], "Fajar":[-136,-241], "Farmway":[325,-290], "Fernvale":[275,-270],
+  "Jelapang":[-161,-249], "Kadaloor":[431,-299], "Kangkar":[375,-239], "Keat Hong":[-221,-218], "Kupang":[294,-294],
+  "Layar":[289,-270], "Meridian":[401,-289], "Nibong":[368,-347], "Oasis":[416,-310], "Pending":[-135,-209],
+  "Petir":[-153,-215], "Phoenix":[-186,-218], "Punggol Point":[393,-366], "Ranggung":[357,-239], "Renjong":[330,-249],
+  "Riviera":[430,-280], "Rumbia":[390,-268], "Sam Kee":[385,-339], "Samudera":[375,-363], "Segar":[-141,-254],
+  "Senja":[-169,-234], "Soo Teck":[356,-322], "South View":[-236,-225], "Sumang":[361,-334], "Teck Lee":[393,-350],
+  "Teck Whye":[-203,-211], "Thanggam":[272,-291], "Tongkang":[312,-260]
+});
 /* Neighbouring stations on a line (includes the Circle Line loop link Bayfront-Promenade) */
 function neighbors(l, n){
   const Ln = LINES[l], a = Ln.stations, i = a.indexOf(n), out = [];
@@ -524,6 +543,13 @@ const PLACES = [
   {id:"jc", name:"Katong & Joo Chiat", short:"Joo Chiat", env:"outdoor", cost:12, dur:90, tags:["food", "culture", "photos"], x:375, y:36},
   {id:"shub", name:"Singapore Sports Hub & Kallang Wave", short:"Sports Hub", env:"indoor", cost:20, dur:60, tags:["shopping"], x:271, y:75},
   {id:"brp", name:"Bedok Reservoir Park", short:"Bedok Reservoir", env:"outdoor", cost:0, dur:60, tags:["nature"], x:480, y:-76},
+  {id:"ppp", name:"Punggol Point Park & Jetty", short:"Punggol Point Park", env:"outdoor", cost:0, dur:60, tags:["nature", "photos"], x:408, y:-382},
+  {id:"coney", name:"Coney Island Park", short:"Coney Island", env:"outdoor", cost:0, dur:120, tags:["nature", "photos"], x:425, y:-346},
+  {id:"wwpt", name:"Waterway Point", short:"Waterway Point", env:"indoor", cost:25, dur:75, tags:["shopping", "food"], x:375, y:-326},
+  {id:"c1", name:"Compass One & Sengkang Riverside", short:"Compass One", env:"indoor", cost:20, dur:60, tags:["shopping", "food"], x:350, y:-272},
+  {id:"znp", name:"Zhenghua Nature Park", short:"Zhenghua Park", env:"outdoor", cost:0, dur:75, tags:["nature"], x:-141, y:-247},
+  {id:"hill", name:"Hillion Mall & Bukit Panjang Plaza", short:"Hillion Mall", env:"indoor", cost:25, dur:60, tags:["shopping", "food"], x:-165, y:-217},
+  /* (LRT-area places above were added for LRT route suggestions) */
   {id:"oth", name:"Our Tampines Hub", short:"Tampines Hub", env:"indoor", cost:15, dur:60, tags:["food", "shopping"], x:523, y:-119}
 ];
 const INTERESTS = ["food","culture","nature","shopping","photos"];
@@ -535,7 +561,7 @@ const freshTrip = () => ({active:false, leg:0, progress:0, override:null, delay:
 const initial = () => ({
   tab:"plan", budget:80, hours:7, interests:new Set(["food","culture"]),
   itinerary:null, trip:freshTrip(), offline:false, watchAlerts:true, clockMin:600,
-  mapLabels:false, showStations:true, watchPage:0, dayDone:0, jFrom:null, jTo:null, jScroll:null, jFocus:null, jFull:false, jZoom:1.8, jFullCenter:null, busView:null, watchBus:null, must:[], mustQuery:"", keepOrder:false, aiFill:true, reach:"city", disruption:null
+  mapLabels:false, showStations:true, watchPage:0, dayDone:0, jFrom:null, jTo:null, jScroll:null, jFocus:null, jFull:false, jZoom:1.8, jFullCenter:null, busView:null, watchBus:null, must:[], mustQuery:"", keepOrder:false, aiFill:true, reach:"city", disruption:null, lrtDisruption:null
 });
 let S = initial();
 let timer = null;
@@ -687,6 +713,8 @@ function plan(){
     if (lunch && p.tags.includes("food")) reasons.push({cls:"why", text:"Lunch time"});
     if (inRain && p.env !== "outdoor") reasons.push({cls:"rain", text:"Sheltered during 3–5pm rain"});
     if (inRain && p.env === "outdoor") reasons.push({cls:"rain", text:"Rain likely, bring an umbrella"});
+    const lrtNames = [...new Set((leg.segments || []).map(sg => LINES[sg.line]).filter(L => L && L.lrt).map(L => L.name))];
+    if (lrtNames.length) reasons.push({cls:"indoor", text:`Via ${lrtNames.join(" and ")}`});
     if (p.tags.includes("food")) lastFood = arrive;
     stops.push({...p, arrive, leave, leg, from:pos, reasons});
     used.add(p.id); spent += p.cost + leg.cost; t = leave; pos = p;
@@ -754,6 +782,7 @@ function render(){
   $("#netLabel").textContent = S.offline ? "Offline" : "5G";
   $("#dOffline").textContent = S.offline ? "Restore internet" : "Lose internet";
   $("#dBreak").textContent = S.disruption ? "End MRT breakdown" : "Random MRT breakdown";
+  $("#dBreakLrt").textContent = S.lrtDisruption ? "End LRT breakdown" : "Random LRT breakdown";
   const views = {plan:viewPlan, itinerary:viewItinerary, go:viewGo, journey:viewJourney, settings:viewSettings};
   $("#app").innerHTML = breakdownBanner() + views[S.tab]();
   bind();
@@ -1558,7 +1587,7 @@ function viewJourney(){
     </svg>${(journeyInner = network + disruptionOverlay(1) + routeLines + stns, "")}
     </div>
   </div>
-  <p class="meta" style="margin:6px 0 10px">All ${Object.keys(STATIONS).length} MRT stations are on the map. Drag or scroll to reach places like Woodlands, Punggol, Changi Airport and Tuas. Tap an empty spot on the map, or Enlarge, to open it full screen. Pinch or use + and − to zoom.</p>
+  <p class="meta" style="margin:6px 0 10px">All ${stationCounts().mrt} MRT and ${stationCounts().lrt} LRT stations are on the map (LRT in grey). Drag or scroll to reach places like Woodlands, Punggol, Changi Airport and Tuas. Tap an empty spot on the map, or Enlarge, to open it full screen. Pinch or use + and − to zoom.</p>
   <div class="panel">
     <div class="pickrow">
       <label for="jFromSel"><span class="pickdot" style="background:var(--go)"></span>From</label><span></span>
@@ -1570,6 +1599,11 @@ function viewJourney(){
     </div>
   </div>
   ${result}
+  <div class="panel">
+    <h3>LRT route ideas</h3>
+    <div class="meta" style="margin:-4px 0 8px">Tap one to see the route, the LRT loop it uses and the travel time.</div>
+    <div class="stopchips">${LRT_IDEAS.map(([a, b, why], i) => `<button class="stopchip" data-lrt-idea="${i}"><b>${esc(a)} → ${esc(b)}</b> <span class="meta">${esc(why)}</span></button>`).join("")}</div>
+  </div>
   <p class="meta">Estimates assume ${RIDE_MIN} min between stations, ${TRANSFER_MIN} min per line change and a ${WAIT_MIN} min platform wait.</p>`;
 }
 
@@ -1709,6 +1743,20 @@ function bindStations(root){
   });
 }
 
+const stationCounts = () => { const mrt = new Set(), lrt = new Set();
+  Object.values(LINES).forEach(L => { if (L.bus) return; L.stations.forEach(n => (L.lrt ? lrt : mrt).add(n)); });
+  return {mrt: mrt.size, lrt: [...lrt].filter(n => !mrt.has(n)).length}; };
+/* Added: suggested trips that use the LRT */
+const LRT_IDEAS = [
+  ["Punggol", "Punggol Point", "Punggol West Loop, for Punggol Point Park"],
+  ["Serangoon", "Punggol Point", "North East Line, then Punggol LRT"],
+  ["Sengkang", "Fernvale", "Sengkang West Loop"],
+  ["Dhoby Ghaut", "Compassvale", "North East Line, then Sengkang East Loop"],
+  ["Choa Chu Kang", "Senja", "Bukit Panjang LRT"],
+  ["Bukit Panjang", "Segar", "Bukit Panjang LRT, for Zhenghua Nature Park"],
+  ["Jurong East", "Keat Hong", "North-South Line, then Bukit Panjang LRT"]
+];
+
 function pickStation(n){
   if (!S.jFrom || (S.jFrom && S.jTo)){ S.jFrom = n; S.jTo = null; }
   else if (n === S.jFrom){ S.jFrom = null; }
@@ -1769,8 +1817,8 @@ function buildWatch(b){
   const Bw = S.trip.breakdown;
   if (Bw && !Bw.resolved){
     w.classList.add("delay");
-    const D = S.disruption, o = Bw.opts[Bw.pick], other = Bw.order.find(x => x !== Bw.pick);
-    const short = k => k === "mrt" && Bw.opts.mrt.leg.mode === "walk" ? "Walk" : ({mrt:"MRT", bridge:"Bridge bus", bus:"Bus"})[k];
+    const D = Bw.D || S.disruption, o = Bw.opts[Bw.pick], other = Bw.order.find(x => x !== Bw.pick);
+    const short = k => k === "mrt" && Bw.opts.mrt.leg.mode === "walk" ? "Walk" : k === "mrt" && D.lrt ? "Train" : ({mrt:"MRT", bridge:"Bridge bus", bus:"Bus"})[k];
     b.innerHTML = o
       ? `<div class="wsmall">⚠ ${esc(LINES[D.line].code)} breakdown</div><div class="wins">Reroute?</div>
          <div class="wprompt">${esc(bdLabel(Bw.pick, o))}, about ${o.mins} min</div>
@@ -1856,7 +1904,7 @@ function tick(){
   if (!S.trip.active || S.trip.arrived) return;
   const d = S.trip.delay;
   let leg = S.trip.override || S.itinerary.stops[S.trip.leg].leg;
-  if (S.disruption && !(S.trip.breakdown && S.trip.breakdown.resolved)) evaluateBreakdown(false);
+  if (disruptions().length && !(S.trip.breakdown && S.trip.breakdown.resolved)) evaluateBreakdown(false);
   if (S.trip.breakdown && !S.trip.breakdown.resolved){ /* waiting for the user to pick a reroute */ }
   else if (d && !d.resolved){ /* waiting on the platform */ }
   else if (d && d.resolved === "wait" && S.trip.waitTicks > 0) S.trip.waitTicks--;
@@ -1914,7 +1962,7 @@ function startTrip(){
   S.clockMin = 600; S.watchPage = 0; S.dayDone = 0;
   addFeed(`Trip started, ${S.itinerary.stops.length} stops today`);
   if (!S.offline) addFeed("Thunderstorm expected 3–5pm. Indoor stops are scheduled then.", "warn");
-  if (S.disruption) addFeed(`${LINES[S.disruption.line].name} disrupted between ${S.disruption.from} and ${S.disruption.to}`, "bad");
+  disruptions().forEach(D => addFeed(`${LINES[D.line].name} disrupted between ${D.from} and ${D.to}`, "bad"));
   evaluateBreakdown(false);
   S.tab = "go"; render();
   clearInterval(timer); timer = setInterval(tick, 120);
@@ -1976,28 +2024,35 @@ const watchLocked = () => S.trip.active && (S.trip.arrived || (S.trip.delay && !
 
 /* ---------- Added: MRT breakdowns (simulated service alerts) with MRT or bridging-bus rerouting ---------- */
 const BRIDGE_COLOR = "#7C3AED";
-function isBlocked(l, a, b){
-  const D = S.disruption;
+/* An MRT breakdown (S.disruption) and an LRT breakdown (S.lrtDisruption) can be active together */
+const disruptions = () => [S.disruption, S.lrtDisruption].filter(Boolean);
+function blockedBy(D, l, a, b){
   if (!D || D.line !== l) return false;
   const arr = LINES[l].stations, i0 = arr.indexOf(D.from), i1 = arr.indexOf(D.to);
   const lo = Math.min(i0, i1), hi = Math.max(i0, i1), ia = arr.indexOf(a), ib = arr.indexOf(b);
   return ia >= lo && ia <= hi && ib >= lo && ib <= hi && ia !== ib;
 }
-const disruptedStations = () => { const D = S.disruption; if (!D) return []; const arr = LINES[D.line].stations, i0 = arr.indexOf(D.from), i1 = arr.indexOf(D.to); return arr.slice(Math.min(i0, i1), Math.max(i0, i1) + 1); };
+function isBlocked(l, a, b){ return disruptions().some(D => blockedBy(D, l, a, b)); }
+const disruptedStations = (D) => { D = D || S.disruption; if (!D) return []; const arr = LINES[D.line].stations, i0 = arr.indexOf(D.from), i1 = arr.indexOf(D.to); return arr.slice(Math.min(i0, i1), Math.max(i0, i1) + 1); };
 function bridgeLineKey(l){
   const k = "BRIDGE:" + l;
   if (!LINES[k]) LINES[k] = {name:`Free bridging bus (${LINES[l].code} line)`, code:"BB", color:BRIDGE_COLOR, bus:true, bridge:true, stations:[]};
   return k;
 }
 /* Does the rest of this leg ride over the closed section? */
-function legAffected(leg, fromIdx){
-  if (!S.disruption || leg.mode !== "mrt") return false;
+function legAffected(leg, fromIdx){ return !!legHitBy(leg, fromIdx); }
+/* Which breakdown (if any) the rest of this leg runs into */
+function legHitBy(leg, fromIdx){
+  if (!disruptions().length || leg.mode !== "mrt") return null;
   const P = leg.points;
   for (let j = Math.max(0, fromIdx); j < P.length - 1; j++){
     const sg = P[j].departSeg;
-    if (sg >= 0 && P[j].station && P[j+1].station && isBlocked(leg.segments[sg].line, P[j].station, P[j+1].station)) return true;
+    if (sg >= 0 && P[j].station && P[j+1].station){
+      const D = disruptions().find(x => blockedBy(x, leg.segments[sg].line, P[j].station, P[j+1].station));
+      if (D) return D;
+    }
   }
-  return false;
+  return null;
 }
 /* Same journey, but the closed stretch is covered by the free bridging bus */
 function bridgeLeg(leg, startIdx, dest){
@@ -2045,12 +2100,12 @@ function bridgeLeg(leg, startIdx, dest){
 const BREAKDOWN_REASONS = ["a track fault", "a signalling fault", "a train fault", "a power fault", "a platform screen door fault", "a track point fault"];
 let lastBreakKey = "";
 /* Random line, random stretch of 2-4 stations */
-function pickRandomSegment(){
-  const keys = Object.keys(LINES).filter(k => !LINES[k].bus);
+function pickRandomSegment(lrt){
+  const keys = Object.keys(LINES).filter(k => !LINES[k].bus && !!LINES[k].lrt === !!lrt);
   for (let tries = 0; tries < 20; tries++){
     const line = keys[Math.floor(Math.random()*keys.length)];
     const arr = LINES[line].stations;
-    const span = Math.min(arr.length - 1, 1 + Math.floor(Math.random()*3));
+    const span = Math.min(arr.length - 1, lrt ? 1 + Math.floor(Math.random()*2) : 1 + Math.floor(Math.random()*3));
     const i = Math.floor(Math.random()*(arr.length - span));
     const key = line + i;
     if (key === lastBreakKey && tries < 19) continue;
@@ -2075,17 +2130,20 @@ function pickBreakdownSegment(){
   }
   return {line:"NSL", from:"Bishan", to:"Novena"};
 }
-function triggerBreakdown(onMyRoute){
+function triggerBreakdown(onMyRoute, lrt){
   if (S.offline){ toast("No live updates", "You're offline, so service alerts can't reach you", "!"); return; }
-  if (S.disruption && !onMyRoute){ toast("Already disrupted", "Clear the current breakdown first", "i"); return; }
+  let slot = lrt ? "lrtDisruption" : "disruption";
+  if (S[slot] && !onMyRoute){ toast("Already disrupted", "Clear the current breakdown first", "i"); return; }
+  let seg;
   if (onMyRoute){
     if (!S.trip.active || S.trip.arrived){ toast("No train ahead", S.trip.active ? "Head to the next stop first" : "Start a trip first", "i"); return; }
     const {leg} = current();
     if (leg.mode !== "mrt"){ toast("No train on this leg", "Try again on a leg that uses the MRT", "i"); return; }
-    if (S.disruption){ S.disruption = null; routeCache.clear(); if (S.trip.breakdown && !S.trip.breakdown.resolved) S.trip.breakdown.resolved = "cleared"; }
-  }
-  const seg = onMyRoute ? pickBreakdownSegment() : pickRandomSegment();
-  S.disruption = {...seg, reason: BREAKDOWN_REASONS[Math.floor(Math.random()*BREAKDOWN_REASONS.length)], at: fmt(S.clockMin)};
+    seg = pickBreakdownSegment();
+    slot = LINES[seg.line].lrt ? "lrtDisruption" : "disruption";
+    if (S[slot]){ const old = S[slot]; S[slot] = null; routeCache.clear(); if (S.trip.breakdown && !S.trip.breakdown.resolved && S.trip.breakdown.D === old) S.trip.breakdown.resolved = "cleared"; }
+  } else seg = pickRandomSegment(lrt);
+  S[slot] = {...seg, lrt: !!LINES[seg.line].lrt, reason: BREAKDOWN_REASONS[Math.floor(Math.random()*BREAKDOWN_REASONS.length)], at: fmt(S.clockMin)};
   routeCache.clear();
   const L = LINES[seg.line];
   if (S.trip.active) addFeed(`${L.name} breakdown: no trains between ${seg.from} and ${seg.to}. Free bridging buses running.`, "bad");
@@ -2094,25 +2152,27 @@ function triggerBreakdown(onMyRoute){
   const hit = evaluateBreakdown(true);
   if (S.trip.active && !S.trip.arrived && !hit){
     addFeed(`Your route isn't affected by the ${L.name} breakdown`);
-    setTimeout(() => { if (S.disruption) toast("Your route isn't affected", `${L.name}: ${seg.from} to ${seg.to} closed`, "✓"); }, 1800);
+    setTimeout(() => { if (S[slot]) toast("Your route isn't affected", `${L.name}: ${seg.from} to ${seg.to} closed`, "✓"); }, 1800);
   }
   render();
 }
-function clearBreakdown(){
-  if (!S.disruption) return;
-  const L = LINES[S.disruption.line];
-  S.disruption = null; routeCache.clear();
-  if (S.trip.breakdown && !S.trip.breakdown.resolved) S.trip.breakdown.resolved = "cleared";
+function clearBreakdown(lrt){
+  const slot = lrt ? "lrtDisruption" : "disruption";
+  if (!S[slot]) return;
+  const old = S[slot], L = LINES[old.line];
+  S[slot] = null; routeCache.clear();
+  if (S.trip.breakdown && !S.trip.breakdown.resolved && (!S.trip.breakdown.D || S.trip.breakdown.D === old)) S.trip.breakdown.resolved = "cleared";
   if (S.trip.active) addFeed(`${L.name} service has resumed`);
   toast("Train service resumed", `${L.name} is running normally`, "✓");
   buzzWatch(); render();
 }
 /* Work out reroute options when the current leg is hit by the breakdown */
 function evaluateBreakdown(fromTrigger){
-  if (!S.trip.active || S.trip.arrived || !S.disruption) return false;
+  if (!S.trip.active || S.trip.arrived || !disruptions().length) return false;
   if (S.trip.breakdown && !S.trip.breakdown.resolved) return true;
   let {stop, leg, pos} = current();
-  if (!legAffected(leg, pos.i)) return false;
+  const hitD = legHitBy(leg, pos.i);
+  if (!hitD) return false;
   const P = leg.points;
   /* if the train is on a closed stretch right now, everyone gets off at the last station */
   let startIdx = pos.i;
@@ -2125,17 +2185,17 @@ function evaluateBreakdown(fromTrigger){
   if (mrt && !legAffected(mrt, 0)) opts.mrt = {leg:mrt, mins:mrt.mins};
   const br = bridgeLeg(leg, startIdx, stop);
   if (br) opts.bridge = {leg:br, mins:br.mins};
-  if (startIdx > 0){
+  if (startIdx > 0 || hitD.lrt){
     const bus = busDetour({x:origin.x, y:origin.y, short:origin.short}, stop, 999);
     if (bus) opts.bus = {leg:bus.leg, mins:bus.leg.mins, opt:bus.opt, wait:bus.wait};
   }
   const keys = Object.keys(opts).sort((a, b) => opts[a].mins - opts[b].mins);
   if (S.trip.delay && !S.trip.delay.resolved) S.trip.delay.resolved = "superseded";
-  S.trip.breakdown = {opts, order:keys, pick:keys[0], resolved:null, at:startIdx, was:remaining};
-  if (!fromTrigger){ toast("Your route is disrupted", `${LINES[S.disruption.line].name}: choose a new route`, "⚠"); buzzWatch(); }
+  S.trip.breakdown = {opts, order:keys, pick:keys[0], resolved:null, at:startIdx, was:remaining, D:hitD};
+  if (!fromTrigger){ toast("Your route is disrupted", `${LINES[hitD.line].name}: choose a new route`, "⚠"); buzzWatch(); }
   return true;
 }
-const bdLabel = (k, o) => k === "mrt" && o && o.leg.mode === "walk" ? "Walk instead" : ({mrt:"Other MRT route", bridge:"Free bridging bus", bus:"Regular bus"})[k];
+const bdLabel = (k, o) => k === "mrt" && o && o.leg.mode === "walk" ? "Walk instead" : k === "mrt" && S.trip.breakdown && S.trip.breakdown.D && S.trip.breakdown.D.lrt ? "Other MRT/LRT route" : ({mrt:"Other MRT route", bridge:"Free bridging bus", bus:"Regular bus"})[k];
 function bdDescribe(k, o){
   if (k === "mrt") return o.leg.mode === "walk" ? "Walk the rest of the way" : `${o.leg.segments.map(sg => LINES[sg.line].name).join(", then ")} from ${o.leg.board}`;
   if (k === "bridge"){
@@ -2153,19 +2213,19 @@ function rerouteBreakdown(from, which){
   toast("Rerouted", `${bdLabel(which, o)} · about ${o.mins} min${from === "watch" ? " · confirmed on watch" : ""}`, "↪");
   buzzWatch(); S.watchPage = 0; render();
 }
-function breakdownBanner(){
-  const D = S.disruption; if (!D) return "";
+function breakdownBanner(){ return disruptions().map(oneBanner).join(""); }
+function oneBanner(D){
   const L = LINES[D.line];
-  const mine = S.trip.active && S.trip.breakdown && !S.trip.breakdown.resolved;
+  const mine = S.trip.active && S.trip.breakdown && !S.trip.breakdown.resolved && S.trip.breakdown.D === D;
   return `<div class="svc-alert" role="alert">
     <span class="linebadge" style="background:${L.color}">${L.code}</span>
-    <div style="flex:1;min-width:0"><b>${esc(L.name)} disrupted</b><div class="meta">No trains between ${esc(D.from)} and ${esc(D.to)} due to ${esc(D.reason)} (since ${D.at}). Free bridging buses at affected stations.</div></div>
+    <div style="flex:1;min-width:0"><b>${esc(L.name)} disrupted</b><div class="meta">No trains between ${esc(D.from)} and ${esc(D.to)} due to ${esc(D.reason)} (since ${D.at}). Free bridging buses at affected stations${D.lrt ? ", and regular buses serve the area" : ""}.</div></div>
     ${mine && S.tab !== "go" ? `<button class="primary" data-go="go" style="width:auto;padding:7px 10px;font-size:.8rem">Reroute</button>` : ""}
   </div>`;
 }
 function breakdownBlock(){
   const B = S.trip.breakdown; if (!B || B.resolved) return "";
-  const D = S.disruption, L = LINES[D.line];
+  const D = B.D || S.disruption, L = LINES[D.line];
   const rows = B.order.map(k => {
     const o = B.opts[k];
     const badge = k === "bridge" ? `<span class="linebadge" style="background:${BRIDGE_COLOR}">BB</span>` : k === "bus" ? o.opt.legs.map(l => busBadge(l.svc)).join(" ") : o.leg.segments.map(sg => lineBadge(LINES[sg.line].code)).join(" ");
@@ -2182,13 +2242,13 @@ function breakdownBlock(){
 }
 /* Journey tab: explain the detour and show the bridging-bus option */
 function breakdownJourneyPanel(a, b, r){
-  if (!S.disruption) return "";
+  if (!disruptions().length) return "";
   const r0 = stationRoute(a, b, true);
   if (!r0) return "";
-  let affected = false, extraStops = 0;
-  for (const sg of r0.segments) for (let i = 0; i + 1 < sg.stations.length; i++) if (isBlocked(sg.line, sg.stations[i], sg.stations[i+1])){ affected = true; extraStops++; }
+  let affected = false, extraStops = 0, D = null;
+  for (const sg of r0.segments) for (let i = 0; i + 1 < sg.stations.length; i++) if (isBlocked(sg.line, sg.stations[i], sg.stations[i+1])){ affected = true; extraStops++; D = D || disruptions().find(x => blockedBy(x, sg.line, sg.stations[i], sg.stations[i+1])); }
   if (!affected) return "";
-  const D = S.disruption, L = LINES[D.line];
+  const L = LINES[D.line];
   const bridgeTotal = r0.total + 8 + extraStops*2;
   return `<div class="panel alert-card">
     <h3>⚠ Avoiding the ${esc(L.name)} breakdown</h3>
@@ -2197,8 +2257,9 @@ function breakdownJourneyPanel(a, b, r){
       <div class="meta">Usual route with a bridging bus over ${extraStops} closed stop${extraStops > 1 ? "s" : ""} · about ${bridgeTotal} min${r ? ` (${bridgeTotal < r.total ? `${r.total - bridgeTotal} min faster` : bridgeTotal === r.total ? "same time" : `${bridgeTotal - r.total} min slower`})` : ""}</div></div></div>
   </div>`;
 }
-function disruptionOverlay(k){
-  const n = disruptedStations(); if (n.length < 2) return "";
+function disruptionOverlay(k){ return disruptions().map(D => oneOverlay(k, D)).join(""); }
+function oneOverlay(k, D){
+  const n = disruptedStations(D); if (n.length < 2) return "";
   const pts = n.map(x => STATIONS[x].join(",")).join(" ");
   return `<polyline points="${pts}" fill="none" stroke="#fff" stroke-width="${8*k}" stroke-linecap="round" opacity=".95"/>
     <polyline points="${pts}" fill="none" stroke="#111827" stroke-width="${4.5*k}" stroke-dasharray="${3*k} ${3*k}"/>`;
@@ -2243,6 +2304,11 @@ function bind(){
     card.onclick = open;
     card.onkeydown = e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); open(); } };
   });
+  document.querySelectorAll("#app [data-lrt-idea]").forEach(bt => bt.onclick = () => {
+    const [a, b] = LRT_IDEAS[+bt.dataset.lrtIdea];
+    S.jFrom = a; S.jTo = b; S.jFocus = a; render();
+    const big = $("#app .jbig"); if (big) big.scrollIntoView({block:"center"});
+  });
   document.querySelectorAll("#app [data-stop-open]").forEach(bt => bt.onclick = e => {
     e.stopPropagation();
     const stop = bt.dataset.stopOpen, board = stopBoard(stop);
@@ -2281,7 +2347,8 @@ document.addEventListener("keydown", e => { if (e.key !== "Escape") return; if (
 $("#crown").onclick = () => { if (!watchLocked()) cycleWatch(); };
 const needTrip = () => { toast("Start a trip first","Plan a day, then tap Start trip","i"); };
 $("#dDelay").onclick = () => S.trip.active ? triggerDelay() : needTrip();
-$("#dBreak").onclick = () => S.disruption ? clearBreakdown() : triggerBreakdown(false);
+$("#dBreak").onclick = () => S.disruption ? clearBreakdown(false) : triggerBreakdown(false, false);
+$("#dBreakLrt").onclick = () => S.lrtDisruption ? clearBreakdown(true) : triggerBreakdown(false, true);
 $("#dBreakMine").onclick = () => triggerBreakdown(true);
 $("#dCrowd").onclick = () => {
   if (!S.trip.active) return needTrip();
