@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Travel Companion — Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9EFF5; --surface:#FFFFFF; --surface-2:#F3F6FA; --ink:#14213D; --muted:#5B6782;
+  --line:#D5DDE8; --route:#2A6FDB; --route-soft:#DCE8FB; --go:#2E9E6A; --go-soft:#DDF2E7;
+  --warn:#E0922F; --warn-soft:#FCEBD3; --stop:#D14B4B; --stop-soft:#F8DEDE;
+  --map-bg:#EEF2EC; --map-water:#CFE0F2; --map-park:#D6E9D2; --phone:#1B2233;
+  --font:"Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1422; --surface:#18203A; --surface-2:#1F2946; --ink:#E8EDF7; --muted:#9AA6C2;
+    --line:#2C3860; --route:#5B95F0; --route-soft:#22345E; --go:#4CC48B; --go-soft:#173B2E;
+    --warn:#F0A94A; --warn-soft:#3F3120; --stop:#EE6A6A; --stop-soft:#452226;
+    --map-bg:#1A2336; --map-water:#1E3355; --map-park:#1E3A2E; --phone:#05070D;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1422; --surface:#18203A; --surface-2:#1F2946; --ink:#E8EDF7; --muted:#9AA6C2;
+  --line:#2C3860; --route:#5B95F0; --route-soft:#22345E; --go:#4CC48B; --go-soft:#173B2E;
+  --warn:#F0A94A; --warn-soft:#3F3120; --stop:#EE6A6A; --stop-soft:#452226;
+  --map-bg:#1A2336; --map-water:#1E3355; --map-park:#1E3A2E; --phone:#05070D;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--route);outline-offset:2px}
+
+.page{max-width:1180px;margin:0 auto;padding:32px 20px 48px}
+.intro{max-width:640px;margin-bottom:28px}
+.intro h1{font-size:clamp(2rem,4.5vw,3.2rem);line-height:1.05;letter-spacing:-.03em;margin:0 0 10px;font-weight:800}
+.intro p{margin:0;color:var(--muted);font-size:1.05rem}
+
+.stage{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:start}
+@media (max-width:900px){.stage{grid-template-columns:1fr;justify-items:center}}
+
+/* Phone */
+.phone{width:360px;max-width:100%;height:740px;background:var(--phone);border-radius:52px;padding:12px;box-shadow:0 30px 60px -30px rgba(20,33,61,.5)}
+.screen{position:relative;height:100%;background:var(--surface-2);border-radius:42px;overflow:hidden;display:flex;flex-direction:column}
+.status{display:flex;justify-content:space-between;align-items:center;padding:14px 26px 6px;font-size:.8rem;font-weight:700}
+.island{width:96px;height:28px;background:#000;border-radius:20px}
+.net{display:flex;gap:6px;align-items:center}
+.net .dot{width:8px;height:8px;border-radius:50%;background:var(--go)}
+.offline .net .dot{background:var(--warn)}
+.app{flex:1;overflow-y:auto;padding:6px 18px 90px}
+.app::-webkit-scrollbar{width:0}
+.tabs{position:absolute;z-index:3;left:0;right:0;bottom:0;display:flex;background:var(--surface);border-top:1px solid var(--line);padding:8px 10px 22px}
+.tabs button{flex:1;min-width:0;background:none;border:0;padding:8px 2px;border-radius:12px;font-size:.68rem;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px}
+.tabs button[aria-selected="true"]{color:var(--route);background:var(--route-soft)}
+.tabs svg{width:20px;height:20px}
+
+h2.screen-title{font-size:1.5rem;letter-spacing:-.02em;margin:8px 0 2px}
+.sub{color:var(--muted);font-size:.85rem;margin:0 0 14px}
+.panel{background:var(--surface);border-radius:18px;padding:14px;margin-bottom:12px;border:1px solid var(--line)}
+.panel h3{margin:0 0 8px;font-size:.92rem}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+input[type=range]{width:100%;accent-color:var(--route)}
+.val{font-weight:700;color:var(--route)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 12px;font-size:.82rem;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.weather{display:flex;gap:12px;align-items:center}
+.weather .big{font-size:1.9rem;font-weight:800;letter-spacing:-.03em}
+.hours{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-top:10px;text-align:center;font-size:.66rem;color:var(--muted)}
+.hours div span{display:block;height:6px;border-radius:3px;background:var(--route-soft);margin-bottom:3px}
+.hours div.rain span{background:var(--route)}
+.primary{width:100%;border:0;border-radius:16px;padding:14px;background:var(--route);color:#fff;font-weight:700;font-size:1rem}
+.primary:disabled{opacity:.6}
+.ghost{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 12px;font-weight:600;font-size:.85rem}
+
+/* Itinerary */
+.timeline{list-style:none;margin:0;padding:0;position:relative}
+.timeline li{position:relative;padding:0 0 14px 58px}
+.timeline li::before{content:"";position:absolute;left:44px;top:8px;bottom:-4px;width:2px;background:var(--line)}
+.timeline li:last-child::before{display:none}
+.timeline .time{position:absolute;left:0;top:0;font-size:.75rem;font-weight:700;color:var(--muted);width:38px}
+.timeline .pin{position:absolute;left:38px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--surface);border:3px solid var(--route)}
+.timeline .name{font-weight:700}
+.meta{font-size:.78rem;color:var(--muted)}
+.tag{display:inline-block;font-size:.7rem;font-weight:700;border-radius:6px;padding:1px 7px;margin:4px 4px 0 0}
+.tag.indoor{background:var(--route-soft);color:var(--route)}
+.tag.why{background:var(--go-soft);color:var(--go)}
+.tag.rain{background:var(--warn-soft);color:var(--warn)}
+.transit{font-size:.74rem;color:var(--muted);margin-top:6px;padding-left:10px;border-left:2px dashed var(--line)}
+.summary{display:flex;gap:8px;margin-bottom:12px}
+.summary div{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 10px}
+.summary b{display:block;font-size:1.1rem}
+.summary small{color:var(--muted);font-size:.72rem}
+
+/* Map + nav */
+.map-wrap{position:relative;border-radius:20px;overflow:hidden;border:1px solid var(--line);margin-bottom:12px}
+.map-wrap svg{display:block;width:100%;height:auto;background:var(--map-bg)}
+.offline-banner{display:none;position:absolute;left:10px;right:10px;top:10px;background:var(--warn-soft);color:var(--ink);border-radius:12px;padding:6px 10px;font-size:.75rem;font-weight:600}
+.offline .offline-banner{display:block}
+.nextleg{display:flex;gap:12px;align-items:center}
+.arrow{flex:none;width:48px;height:48px;border-radius:14px;background:var(--route);color:#fff;display:grid;place-items:center}
+.arrow svg{width:26px;height:26px}
+.nextleg .ins{font-weight:700;line-height:1.3}
+.eta{font-size:1.6rem;font-weight:800;letter-spacing:-.02em}
+.progress{height:6px;background:var(--route-soft);border-radius:3px;overflow:hidden;margin-top:10px}
+.progress span{display:block;height:100%;background:var(--route);width:0}
+.crowd{display:flex;gap:3px;align-items:end;height:16px}
+.crowd i{width:5px;background:var(--line);border-radius:2px}
+.crowd i:nth-child(1){height:6px}.crowd i:nth-child(2){height:11px}.crowd i:nth-child(3){height:16px}
+.crowd.l1 i:nth-child(1){background:var(--go)}
+.crowd.l2 i:nth-child(-n+2){background:var(--warn)}
+.crowd.l3 i{background:var(--stop)}
+.feed{list-style:none;margin:0;padding:0}
+.feed li{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:.82rem}
+.feed li:first-child{border-top:0}
+.feed .ic{flex:none;width:8px;height:8px;border-radius:50%;margin-top:6px;background:var(--go)}
+.feed .warn .ic{background:var(--warn)}
+.feed .bad .ic{background:var(--stop)}
+.feed time{color:var(--muted);font-size:.72rem;display:block}
+.alert-card{background:var(--stop-soft);border:1.5px solid var(--stop)}
+.alert-card .row{align-items:flex-start}
+.empty{text-align:center;padding:40px 10px;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:1.05rem;margin-bottom:6px}
+
+.toast{position:absolute;left:12px;right:12px;top:52px;background:var(--ink);color:var(--surface);border-radius:20px;padding:12px 14px;display:flex;gap:10px;align-items:center;transform:translateY(calc(-100% - 70px));transition:transform .35s cubic-bezier(.2,.9,.3,1.2);z-index:5;font-size:.85rem}
+.toast.show{transform:none}
+.toast .badge{flex:none;width:34px;height:34px;border-radius:10px;background:var(--route);display:grid;place-items:center;color:#fff;font-weight:800}
+
+.toggle{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.toggle:first-of-type{border-top:0}
+.switch{width:46px;height:28px;border-radius:14px;border:0;background:var(--line);position:relative;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s}
+.switch[aria-checked="true"]{background:var(--go)}
+.switch[aria-checked="true"]::after{left:21px}
+
+/* Right column */
+.side{display:grid;gap:24px;width:100%}
+.watch-row{display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+.watch{width:200px;height:244px;background:var(--phone);border-radius:56px;padding:14px;position:relative;flex:none}
+.watch::before,.watch::after{content:"";position:absolute;left:44px;right:44px;height:26px;background:#3A4254;z-index:-1}
+.watch::before{top:-18px;border-radius:14px 14px 0 0}
+.watch::after{bottom:-18px;border-radius:0 0 14px 14px}
+.crown{position:absolute;right:-7px;top:62px;width:9px;height:34px;background:#3A4254;border-radius:4px}
+.wscreen{height:100%;background:#000;color:#fff;border-radius:42px;padding:18px 16px;display:flex;flex-direction:column;overflow:hidden}
+.wtime{text-align:right;font-size:.8rem;font-weight:700;color:#8FB4F5}
+.wbody{flex:1;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.warrow{width:40px;height:40px;border-radius:12px;background:#2A6FDB;display:grid;place-items:center}
+.warrow svg{width:24px;height:24px}
+.wins{font-weight:700;font-size:.9rem;line-height:1.2}
+.weta{font-size:1.7rem;font-weight:800;letter-spacing:-.03em;color:#6FE3A6}
+.wsmall{font-size:.72rem;color:#A7B0C4}
+.wscreen.arrived{background:#1E6B47}
+.wscreen.delay{background:#6B3A10}
+.buzz{animation:buzz .12s linear 6}
+@keyframes buzz{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.watch-copy h3{margin:0 0 6px;font-size:1.1rem}
+.watch-copy p{margin:0;color:var(--muted);max-width:40ch}
+
+.controls{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:20px}
+.controls h3{margin:0 0 4px;font-size:1.1rem}
+.controls p{margin:0 0 14px;color:var(--muted);font-size:.9rem}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.feature{padding:14px 16px;border-left:3px solid var(--route);background:var(--surface);border-radius:0 14px 14px 0}
+.feature b{display:block;margin-bottom:2px}
+.feature span{color:var(--muted);font-size:.88rem}
+.feature.live{border-color:var(--warn)}
+.feature.off{border-color:var(--go)}
+.feature.wear{border-color:var(--ink)}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition:none!important}
+}
+/* Stations + network map */
+.map-chip{position:absolute;right:10px;bottom:10px;border:0;border-radius:999px;padding:5px 11px;font-size:.74rem;font-weight:700;background:var(--surface);color:var(--ink);box-shadow:0 1px 4px rgba(20,33,61,.25)}
+.map-chip[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.stlist{list-style:none;margin:8px 0 0;padding:0}
+.stlist li{display:flex;gap:10px;min-height:36px}
+.rail{position:relative;width:14px;flex:none;display:flex;justify-content:center}
+.rail::before,.rail::after{content:"";position:absolute;width:4px;left:5px}
+.rail::before{top:0;height:50%;background:var(--cin)}
+.rail::after{top:50%;bottom:0;background:var(--c)}
+.stlist li:first-child .rail::before,.stlist li:last-child .rail::after{display:none}
+.rail i{position:relative;z-index:1;align-self:center;width:13px;height:13px;border-radius:50%;background:var(--surface);border:3px solid var(--c)}
+.stlist .txt{align-self:center;font-size:.86rem;padding:4px 0;line-height:1.25}
+.stlist .passed .txt{color:var(--muted)}
+.stlist .passed .rail i{background:var(--c)}
+.stlist .next .txt b{color:var(--route)}
+.stlist .here .rail i{box-shadow:0 0 0 4px var(--route-soft)}
+.stsum{display:flex;align-items:center;gap:8px;font-size:.85rem;flex-wrap:wrap}
+.linebadge{display:inline-block;color:#fff;font-size:.68rem;font-weight:800;border-radius:6px;padding:1px 6px}
+
+/* Watch pages */
+.crown{border:0;padding:0;cursor:pointer}
+.wscreen{cursor:pointer}
+.wdots{display:flex;justify-content:center;gap:4px;padding-top:4px}
+.wdots i{width:5px;height:5px;border-radius:50%;background:#4A5163}
+.wdots i.on{background:#fff}
+.wst{list-style:none;margin:0;padding:0;font-size:.72rem}
+.wst li{display:flex;align-items:center;gap:6px;padding:2px 0;color:#8B93A7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wst li i{width:9px;height:9px;border-radius:50%;border:2px solid var(--c);flex:none}
+.wst li.passed i{background:var(--c)}
+.wst li.next{color:#fff;font-weight:700}
+.wst li.next i{background:#fff;border-color:#fff}
+.wtitle{font-size:.7rem;color:#A7B0C4;margin-bottom:2px}
+.jscroll{overflow-x:auto;overscroll-behavior-x:contain}
+.jscroll svg{display:block;max-width:none;height:auto}
+.jmap .stn{cursor:pointer}
+.jmap .stn:focus{outline:none}
+.jmap .stn:focus-visible .ring{stroke:var(--route);stroke-width:2}
+.jmap .stn:hover .dot{stroke:var(--route)}
+.pickrow{display:grid;grid-template-columns:1fr auto;gap:6px 8px;align-items:center}
+.pickrow label{font-size:.75rem;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px}
+.pickrow select{grid-column:1;width:100%;padding:7px 8px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-size:.85rem}
+.pickdot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.jbig{display:flex;align-items:baseline;gap:6px}
+.jbig b{font-size:2.4rem;letter-spacing:-.03em;line-height:1}
+.jsteps{list-style:none;margin:10px 0 0;padding:0}
+.jsteps li{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:.84rem}
+.jsteps li:first-child{border-top:0}
+.jsteps .linebadge{align-self:flex-start;margin-top:2px;min-width:28px;text-align:center}
+.jbreak{display:flex;gap:6px;margin-top:10px}
+.jbreak div{flex:1;background:var(--surface-2);border-radius:10px;padding:6px 8px;font-size:.72rem;color:var(--muted)}
+.jbreak b{display:block;font-size:.95rem;color:var(--ink)}
+.wbtns{display:flex;gap:6px;margin-top:8px}
+.wbtn{flex:1;border:0;border-radius:14px;padding:7px 4px;font-size:.74rem;font-weight:800;background:rgba(255,255,255,.18);color:#fff;cursor:pointer}
+.wbtn.yes{background:#fff;color:#0B3B24}
+.wscreen.delay .wbtn.yes{color:#6B3A10}
+.wbtn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.wprompt{font-size:.74rem;color:#E6E9F0;line-height:1.25}
+.wtabs{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.wtabs button{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.8rem;font-weight:600}
+.wtabs button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="intro">
+    <h1>Smart Travel Companion</h1>
+    <p>An AI travel assistant that plans your day around what you like, what you can spend and the weather, then gets you there with live transit updates, station by station, on your phone and your wrist. Plan a day in Singapore, start the trip, and use the demo controls to trigger real-world events.</p>
+  </header>
+
+  <div class="stage">
+    <div class="phone" aria-label="Phone app prototype">
+      <div class="screen" id="screen">
+        <div class="status">
+          <span id="clock">10:00</span>
+          <div class="island" aria-hidden="true"></div>
+          <span class="net"><span class="dot"></span><span id="netLabel">5G</span></span>
+        </div>
+        <div class="toast" id="toast" role="status" aria-live="polite">
+          <div class="badge" id="toastBadge">✓</div>
+          <div><b id="toastTitle"></b><div id="toastBody" style="opacity:.8"></div></div>
+        </div>
+        <main class="app" id="app"></main>
+        <nav class="tabs" role="tablist">
+          <button role="tab" data-tab="plan" aria-selected="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3l2.5 5.5L20 11l-5.5 2.5L12 19l-2.5-5.5L4 11l5.5-2.5z"/></svg>Plan</button>
+          <button role="tab" data-tab="itinerary" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Itinerary</button>
+          <button role="tab" data-tab="go" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 11l18-8-8 18-2-8z"/></svg>Navigate</button>
+          <button role="tab" data-tab="journey" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 6H14a3 3 0 010 6H10a3 3 0 000 6h6.5"/></svg>Journey</button>
+          <button role="tab" data-tab="settings" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Settings</button>
+        </nav>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="watch-row">
+        <div class="watch" id="watch" aria-label="Apple Watch prototype">
+          <button class="crown" id="crown" aria-label="Digital Crown: next watch page"></button>
+          <div class="wscreen" id="wscreen" role="button" tabindex="0" aria-label="Watch screen, tap for next page">
+            <div class="wtime" id="wclock">10:00</div>
+            <div class="wbody" id="wbody"></div>
+            <div class="wdots" id="wdots"></div>
+          </div>
+        </div>
+        <div class="watch-copy">
+          <h3>Navigation on your wrist</h3>
+          <p>The watch guides each leg: which way to walk, which train to board, the next station, when to change lines and when to get off. It taps your wrist at every one of those moments. When a train is delayed it asks whether to switch route, and when you arrive it asks whether to continue to the next stop. Answer right on the watch. Tap the screen or the crown to flip pages.</p>
+          <div class="wtabs" role="group" aria-label="Watch page">
+            <button data-wpage="0">Directions</button>
+            <button data-wpage="1">Stations</button>
+            <button data-wpage="2">Map</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="controls" aria-labelledby="demoTitle">
+        <h3 id="demoTitle">Demo controls</h3>
+        <p>Simulate what happens during a real trip. Start a trip from the Navigate tab first.</p>
+        <div class="btns">
+          <button class="ghost" id="dDelay">Trigger train delay</button>
+          <button class="ghost" id="dCrowd">Raise crowd level</button>
+          <button class="ghost" id="dOffline">Lose internet</button>
+          <button class="ghost" id="dArrive">Jump to arrival</button>
+          <button class="ghost" id="dTheme">Toggle dark mode</button>
+          <button class="ghost" id="dReset">Reset prototype</button>
+        </div>
+      </section>
+
+      <section class="features" aria-label="What the prototype shows">
+        <div class="feature"><b>Personalised itineraries</b><span>Built from interests, budget, time available and the hourly forecast. Indoor stops are moved into the rain window.</span></div>
+        <div class="feature live"><b>Live transit, station by station</b><span>MRT routes with every station and line change, plus crowd levels, delays and a one-tap switch to another route.</span></div>
+        <div class="feature off"><b>Tracking and offline maps</b><span>Your position keeps moving on the saved map when the connection drops.</span></div>
+        <div class="feature"><b>Station-to-station times</b><span>Tap any two stations on the MRT map to see the travel time, route, line changes and fare.</span></div>
+        <div class="feature wear"><b>Apple Watch navigation</b><span>Directions, station list and a mini map, with a wrist tap before each line change and before your stop.</span></div>
+      </section>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+"use strict";
+
+/* ---------- MRT network (subset of central Singapore; map coordinates are schematic) ---------- */
+const STATIONS = {
+  "Botanic Gardens":[35,58], "Stevens":[62,40], "Newton":[108,38], "Little India":[150,48], "Rochor":[172,62],
+  "Bugis":[192,84], "Promenade":[214,108], "Bayfront":[224,138], "Downtown":[192,160], "Telok Ayer":[168,166],
+  "Chinatown":[124,166], "Fort Canning":[128,128], "Bencoolen":[156,92], "Orchard":[76,68], "Somerset":[100,76],
+  "Dhoby Ghaut":[128,80], "City Hall":[166,122], "Raffles Place":[178,148], "Marina Bay":[204,190],
+  "Bras Basah":[150,104], "Esplanade":[188,116], "Tanjong Pagar":[140,194], "Outram Park":[104,178],
+  "Great World":[80,122], "Havelock":[96,152], "Maxwell":[132,184], "Shenton Way":[172,196], "Gardens by the Bay":[252,168],
+  /* Added: East-West Line east of Bugis */
+  "Lavender":[220,74], "Kallang":[248,70], "Aljunied":[276,66], "Paya Lebar":[304,62], "Eunos":[332,62],
+  "Kembangan":[360,64], "Bedok":[388,70], "Tanah Merah":[416,78], "Simei":[440,66], "Tampines":[462,54], "Pasir Ris":[484,42],
+  /* Added: Changi Airport branch */
+  "Expo":[440,98], "Changi Airport":[466,112],
+  /* Added: East-West Line west of Outram Park */
+  "Tiong Bahru":[80,172], "Redhill":[58,164], "Queenstown":[36,156], "Commonwealth":[14,148], "Buona Vista":[-8,140],
+  "Dover":[-30,134], "Clementi":[-52,128], "Jurong East":[-76,122], "Chinese Garden":[-98,118], "Lakeside":[-118,114],
+  "Boon Lay":[-138,110], "Pioneer":[-158,106], "Joo Koon":[-178,102], "Gul Circle":[-196,98], "Tuas Crescent":[-212,94],
+  "Tuas West Road":[-228,90], "Tuas Link":[-244,86]
+};
+const LINES = {
+  DTL:{name:"Downtown Line", code:"DT", color:"#005EC4", stations:["Botanic Gardens","Stevens","Newton","Little India","Rochor","Bugis","Promenade","Bayfront","Downtown","Telok Ayer","Chinatown","Fort Canning","Bencoolen"]},
+  CCL:{name:"Circle Line", code:"CC", color:"#FA9E0D", stations:["Dhoby Ghaut","Bras Basah","Esplanade","Promenade","Bayfront","Marina Bay"]},
+  NSL:{name:"North-South Line", code:"NS", color:"#D42E12", stations:["Newton","Orchard","Somerset","Dhoby Ghaut","City Hall","Raffles Place","Marina Bay"]},
+  EWL:{name:"East-West Line", code:"EW", color:"#009645", stations:["Pasir Ris","Tampines","Simei","Tanah Merah","Bedok","Kembangan","Eunos","Paya Lebar","Aljunied","Kallang","Lavender",
+    "Bugis","City Hall","Raffles Place","Tanjong Pagar","Outram Park",
+    "Tiong Bahru","Redhill","Queenstown","Commonwealth","Buona Vista","Dover","Clementi","Jurong East","Chinese Garden",
+    "Lakeside","Boon Lay","Pioneer","Joo Koon","Gul Circle","Tuas Crescent","Tuas West Road","Tuas Link"]},
+  CGL:{name:"East-West Line (Changi Airport branch)", code:"CG", color:"#009645", stations:["Tanah Merah","Expo","Changi Airport"]},
+  TEL:{name:"Thomson-East Coast Line", code:"TE", color:"#9D5B25", stations:["Orchard","Great World","Havelock","Outram Park","Maxwell","Shenton Way","Marina Bay","Gardens by the Bay"]}
+};
+const WALK_COLOR = "#2A6FDB";
+/* Real terminus names for the direction of travel [towards first station, towards last station] */
+const TERMINI = {DTL:["Bukit Panjang","Expo"], NSL:["Jurong East","Marina South Pier"], EWL:["Pasir Ris","Tuas Link"]};
+const towardsName = (line, up) => { const arr = LINES[line].stations, t = TERMINI[line]; return t ? t[up?1:0] : (up ? arr[arr.length-1] : arr[0]); };
+const st = n => ({x:STATIONS[n][0], y:STATIONS[n][1]});
+const linesAt = n => Object.keys(LINES).filter(k => LINES[k].stations.includes(n));
+
+/* ---------- Places ---------- */
+const PLACES = [
+  {id:"cf", name:"Cloud Forest, Gardens by the Bay", short:"Cloud Forest", env:"indoor", cost:32, dur:90, tags:["nature","photos"], x:250, y:150},
+  {id:"sg", name:"Supertree Grove", short:"Supertree Grove", env:"outdoor", cost:0, dur:45, tags:["nature","photos"], x:238, y:176},
+  {id:"mbs", name:"Marina Bay Sands SkyPark", short:"SkyPark", env:"outdoor", cost:32, dur:60, tags:["photos"], x:215, y:160},
+  {id:"asm", name:"ArtScience Museum", short:"ArtScience", env:"indoor", cost:30, dur:90, tags:["culture","photos"], x:204, y:142},
+  {id:"ng", name:"National Gallery Singapore", short:"National Gallery", env:"indoor", cost:25, dur:120, tags:["culture"], x:165, y:116},
+  {id:"pm", name:"Peranakan Museum", short:"Peranakan Museum", env:"indoor", cost:15, dur:75, tags:["culture"], x:146, y:98},
+  {id:"ct", name:"Chinatown heritage walk", short:"Chinatown", env:"outdoor", cost:0, dur:75, tags:["culture","food","shopping"], x:118, y:160},
+  {id:"mx", name:"Maxwell Food Centre", short:"Maxwell Food Centre", env:"covered", cost:8, dur:45, tags:["food"], x:128, y:190},
+  {id:"lps", name:"Lau Pa Sat", short:"Lau Pa Sat", env:"covered", cost:12, dur:60, tags:["food"], x:160, y:178},
+  {id:"hl", name:"Haji Lane & Kampong Glam", short:"Haji Lane", env:"outdoor", cost:0, dur:60, tags:["shopping","culture","photos"], x:198, y:72},
+  {id:"io", name:"ION Orchard", short:"ION Orchard", env:"indoor", cost:40, dur:90, tags:["shopping"], x:70, y:62},
+  {id:"fc", name:"Fort Canning Park", short:"Fort Canning", env:"outdoor", cost:0, dur:60, tags:["nature"], x:120, y:114},
+  {id:"bg", name:"Singapore Botanic Gardens", short:"Botanic Gardens", env:"outdoor", cost:0, dur:90, tags:["nature"], x:26, y:46},
+  /* Added: stops along the East-West Line */
+  {id:"tbm", name:"Tiong Bahru Market & heritage estate", short:"Tiong Bahru", env:"covered", cost:10, dur:60, tags:["food","culture"], x:84, y:184},
+  {id:"gs", name:"Geylang Serai Market", short:"Geylang Serai", env:"covered", cost:8, dur:50, tags:["food","culture"], x:306, y:76},
+  {id:"ecp", name:"East Coast Park", short:"East Coast Park", env:"outdoor", cost:10, dur:90, tags:["nature","food","photos"], x:392, y:98},
+  {id:"prp", name:"Pasir Ris Park", short:"Pasir Ris Park", env:"outdoor", cost:0, dur:60, tags:["nature"], x:492, y:32},
+  {id:"jwl", name:"Jewel Changi Airport", short:"Jewel Changi", env:"indoor", cost:20, dur:120, tags:["shopping","nature","photos"], x:472, y:124},
+  {id:"jlg", name:"Jurong Lake Gardens", short:"Jurong Lake Gardens", env:"outdoor", cost:0, dur:75, tags:["nature","photos"], x:-104, y:130},
+  {id:"scs", name:"Science Centre Singapore", short:"Science Centre", env:"indoor", cost:12, dur:90, tags:["culture"], x:-82, y:134},
+  {id:"jem", name:"JEM & Westgate malls", short:"Jurong East malls", env:"indoor", cost:30, dur:75, tags:["shopping","food"], x:-68, y:112}
+];
+const INTERESTS = ["food","culture","nature","shopping","photos"];
+const RAIN_START = 15*60, RAIN_END = 17*60;
+const START = {name:"Your hotel (Bayfront)", short:"Hotel", x:230, y:126};
+
+/* ---------- State ---------- */
+const freshTrip = () => ({active:false, leg:0, progress:0, override:null, delay:null, delayShown:false, waitTicks:0, arrived:false, crowdBoost:0, feed:[], lastKey:"", lastI:-1, arrivePrompt:false});
+const initial = () => ({
+  tab:"plan", budget:80, hours:7, interests:new Set(["food","culture"]),
+  itinerary:null, trip:freshTrip(), offline:false, watchAlerts:true, clockMin:600,
+  mapLabels:false, showStations:true, watchPage:0, dayDone:0, jFrom:null, jTo:null, jScroll:null
+});
+let S = initial();
+let timer = null;
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+const fmt = m => { const h=Math.floor(m/60), mm=Math.floor(m%60); return `${h}:${String(mm).padStart(2,"0")}`; };
+const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function hash(str){ let h=0; for (const c of str) h=(h*31+c.charCodeAt(0))|0; return Math.abs(h); }
+const walkMin = d => Math.round(d/3) + 1;
+
+/* ---------- Route finder: walk, or MRT with the fewest minutes (transfers cost extra) ---------- */
+function findRoute(origin, dest, banned){
+  const direct = dist(origin, dest);
+  const walkOnly = {mode:"walk", mins:walkMin(direct)+1, cost:0, segments:[],
+    points:[{x:origin.x, y:origin.y, label:origin.short, role:"origin", departSeg:-1},
+            {x:dest.x, y:dest.y, label:dest.short, role:"dest", arriveSeg:-1}]};
+  if (direct < 35) return walkOnly;
+
+  const near = p => Object.keys(STATIONS).map(n => ({n, d:dist(p, st(n))})).filter(o => o.d <= 42);
+  const ends = new Map(near(dest).map(o => [o.n, o.d]));
+  const best = new Map(), prev = new Map(), pq = [];
+  const push = (n, l, c, from) => { const k = n+"|"+l; if (!best.has(k) || c < best.get(k)){ best.set(k,c); prev.set(k,from); pq.push([c,n,l]); } };
+  for (const s of near(origin)) for (const l of linesAt(s.n)) if (l !== banned) push(s.n, l, walkMin(s.d) + 3, null);
+
+  let finalKey = null, finalCost = Infinity;
+  while (pq.length){
+    pq.sort((a,b) => a[0]-b[0]);
+    const [c, n, l] = pq.shift(), k = n+"|"+l;
+    if (c > best.get(k)) continue;
+    if (ends.has(n)){ const tot = c + walkMin(ends.get(n)); if (tot < finalCost){ finalCost = tot; finalKey = k; } }
+    const arr = LINES[l].stations, i = arr.indexOf(n);
+    if (i > 0) push(arr[i-1], l, c+2, k);
+    if (i < arr.length-1) push(arr[i+1], l, c+2, k);
+    for (const l2 of linesAt(n)) if (l2 !== l && l2 !== banned) push(n, l2, c+4, k);
+  }
+  if (!finalKey) return banned ? null : walkOnly;
+  if (!banned && walkOnly.mins <= finalCost) return walkOnly;
+
+  const seq = []; let k = finalKey;
+  while (k){ const [n,l] = k.split("|"); seq.unshift({n,l}); k = prev.get(k); }
+  const segments = [];
+  for (const s of seq){
+    const last = segments[segments.length-1];
+    if (!last || last.line !== s.l) segments.push({line:s.l, stations:[s.n]}); else last.stations.push(s.n);
+  }
+  segments.forEach(sg => {
+    const arr = LINES[sg.line].stations;
+    const up = arr.indexOf(sg.stations[1]) > arr.indexOf(sg.stations[0]);
+    sg.towards = towardsName(sg.line, up);
+  });
+  const points = [{x:origin.x, y:origin.y, label:origin.short, role:"origin", departSeg:-1}];
+  segments.forEach((sg, si) => sg.stations.forEach((n, j) => {
+    if (si > 0 && j === 0){ const p = points[points.length-1]; p.role = "transfer"; p.departSeg = si; return; }
+    points.push({...st(n), label:n, station:n, role: j===0 ? "board" : "ride", arriveSeg: j===0 ? -1 : si, departSeg: si});
+  }));
+  const lastSt = points[points.length-1]; lastSt.role = "alight"; lastSt.departSeg = -1;
+  points.push({x:dest.x, y:dest.y, label:dest.short, role:"dest", arriveSeg:-1});
+  const stops = points.filter(p => p.station).length - 1;
+  return {mode:"mrt", mins:Math.round(finalCost), cost:+(1.09 + stops*0.1).toFixed(2), segments, points,
+          board:points[1].station, alight:lastSt.station, stops};
+}
+const routeCache = new Map();
+function route(a, b){ const k = a.short+">"+b.short; if (!routeCache.has(k)) routeCache.set(k, findRoute(a,b)); return routeCache.get(k); }
+
+/* ---------- Position along a leg ---------- */
+function geom(leg){
+  if (!leg.cum){
+    leg.cum = [0];
+    for (let i=1; i<leg.points.length; i++) leg.cum.push(leg.cum[i-1] + dist(leg.points[i-1], leg.points[i]));
+    leg.len = leg.cum[leg.cum.length-1] || 1;
+  }
+  return leg;
+}
+function posAt(leg, p){
+  geom(leg);
+  const d = leg.len * p; let i = 0;
+  while (i < leg.points.length-2 && leg.cum[i+1] <= d) i++;
+  const a = leg.points[i], b = leg.points[i+1];
+  const t = Math.min(1, (d - leg.cum[i]) / ((leg.cum[i+1]-leg.cum[i]) || 1));
+  return {i, x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t};
+}
+const edgeColor = (leg, i) => leg.points[i].departSeg >= 0 ? LINES[leg.segments[leg.points[i].departSeg].line].color : WALK_COLOR;
+
+/* Turn-by-turn instruction for where you are on the leg */
+function nav(leg, i, dest){
+  const P = leg.points, cur = P[i], next = P[i+1];
+  if (leg.mode === "walk") return {key:"walk", kind:"walk", title:`Walk to ${dest.short}`, detail:"Sheltered walkway most of the way", color:WALK_COLOR};
+  if (i === 0){
+    const L = LINES[leg.segments[0].line];
+    return {key:"toboard", kind:"walk", title:`Walk to ${next.station}`, detail:`Board ${L.name} towards ${leg.segments[0].towards}`, color:WALK_COLOR, next:next.station};
+  }
+  if (next.role === "dest") return {key:"exit", kind:"walk", buzz:true, title:`Exit ${cur.station} and walk to ${dest.short}`, detail:"Follow signs to the nearest exit", color:WALK_COLOR};
+  const sg = leg.segments[cur.departSeg], L = LINES[sg.line];
+  let left = 0;
+  for (let j=i+1; j<P.length; j++){ left++; if (P[j].departSeg !== cur.departSeg) break; }
+  const base = {kind:"train", color:L.color, line:L, next:next.station, left};
+  if (next.role === "transfer"){
+    const L2 = LINES[leg.segments[cur.departSeg+1].line];
+    return {...base, key:"tr"+i, buzz:true, title:`Change at ${next.station}`, detail:`Next stop. Switch to ${L2.name}`};
+  }
+  if (next.role === "alight") return {...base, key:"al", buzz:true, title:`Get off at ${next.station}`, detail:"Next stop. Get ready to alight"};
+  return {...base, key:"ride"+cur.departSeg, buzz:cur.role==="board"||cur.role==="transfer", title:`Next: ${next.station}`,
+          detail:`${L.name} towards ${sg.towards} · ${left} stop${left>1?"s":""} to go`};
+}
+
+/* ---------- Itinerary engine (rule-based stand-in for the AI planner) ---------- */
+function plan(){
+  let t = 600, spent = 0, pos = START;
+  const end = 600 + S.hours*60, used = new Set(), stops = [];
+  let lastFood = -999;
+  while (true){
+    let best = null, bestScore = -Infinity;
+    for (const p of PLACES){
+      if (used.has(p.id)) continue;
+      const leg = route(pos, p);
+      const arrive = t + leg.mins, leave = arrive + p.dur;
+      if (leave > end || spent + p.cost + leg.cost > S.budget) continue;
+      const matches = p.tags.filter(x => S.interests.has(x)).length;
+      if (!matches) continue;
+      let score = matches*10 - leg.mins*0.4;
+      const inRain = arrive < RAIN_END && leave > RAIN_START;
+      if (inRain && p.env === "outdoor") score -= 40;
+      if (inRain && p.env !== "outdoor") score += 8;
+      const lunch = arrive >= 690 && arrive <= 810;
+      if (p.tags.includes("food")) score += (lunch && arrive - lastFood > 150) ? 18 : -25;
+      if (score > bestScore){ bestScore = score; best = {p, leg, arrive, leave, inRain, lunch}; }
+    }
+    if (!best) break;
+    const {p, leg, arrive, leave, inRain, lunch} = best;
+    const reasons = [{cls:"why", text:"You like " + p.tags.filter(x => S.interests.has(x)).join(", ")}];
+    if (lunch && p.tags.includes("food")) reasons.push({cls:"why", text:"Lunch time"});
+    if (inRain && p.env !== "outdoor") reasons.push({cls:"rain", text:"Sheltered during 3–5pm rain"});
+    if (inRain && p.env === "outdoor") reasons.push({cls:"rain", text:"Rain likely, bring an umbrella"});
+    if (p.tags.includes("food")) lastFood = arrive;
+    stops.push({...p, arrive, leave, leg, from:pos, reasons});
+    used.add(p.id); spent += p.cost + leg.cost; t = leave; pos = p;
+  }
+  return {stops, spent, endTime:t};
+}
+
+/* ---------- Trip helpers ---------- */
+function current(){
+  const stop = S.itinerary.stops[S.trip.leg];
+  const leg = S.trip.override || stop.leg;
+  const d = S.trip.delay;
+  const delayMins = d && d.resolved !== "switch" ? 12 : 0;
+  const pos = posAt(leg, S.trip.progress);
+  return {stop, leg, pos, delayMins, n:nav(leg, pos.i, stop), remaining: Math.max(0, Math.ceil(leg.mins*(1-S.trip.progress))) + (S.trip.progress<1 ? delayMins : 0)};
+}
+function crowdLevel(stop){ return Math.min(3, (hash(stop.short) % 3) + 1 + S.trip.crowdBoost); }
+const lineBadge = code => { const L = Object.values(LINES).find(l => l.code === code); return `<span class="linebadge" style="background:${L.color}">${code}</span>`; };
+
+function legSummary(leg){
+  if (leg.mode === "walk") return `Walk · ${leg.mins} min`;
+  const codes = leg.segments.map(s => lineBadge(LINES[s.line].code)).join(" ");
+  return `${codes} ${esc(leg.board)} to ${esc(leg.alight)} · ${leg.stops} stop${leg.stops>1?"s":""} · ${leg.mins} min`;
+}
+
+const altShort = a => a.mode === "walk" ? "Walking is faster" : "Faster via " + a.segments.map(s => LINES[s.line].name).join(" + ");
+const altText = a => a.mode === "walk" ? "Walking the rest of the way" : `Taking the ${a.segments.map(s => LINES[s.line].name).join(", then ")} from ${a.board}`;
+
+/* ---------- Rendering ---------- */
+function render(){
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === S.tab));
+  $("#screen").classList.toggle("offline", S.offline);
+  $("#netLabel").textContent = S.offline ? "Offline" : "5G";
+  $("#dOffline").textContent = S.offline ? "Restore internet" : "Lose internet";
+  const views = {plan:viewPlan, itinerary:viewItinerary, go:viewGo, journey:viewJourney, settings:viewSettings};
+  $("#app").innerHTML = views[S.tab]();
+  bind();
+  if (S.trip.active) S.trip.lastI = current().pos.i;
+  const js = $(".jscroll");
+  if (js){
+    js.scrollLeft = S.jScroll !== null ? S.jScroll : js.scrollWidth * (-J_X0 / J_W) - 4;
+    js.onscroll = () => { S.jScroll = js.scrollLeft; };
+  }
+  updateLive();
+}
+
+function viewPlan(){
+  const hours = [10,11,12,13,14,15,16,17].map(h => `<div class="${h>=15&&h<17?'rain':''}"><span></span>${h}</div>`).join("");
+  return `
+  <h2 class="screen-title">Plan your day</h2>
+  <p class="sub">Tell me what you're after and I'll build the route.</p>
+  <div class="panel">
+    <h3>What do you enjoy?</h3>
+    <div class="chips">${INTERESTS.map(i => `<button class="chip" data-int="${i}" aria-pressed="${S.interests.has(i)}">${i[0].toUpperCase()+i.slice(1)}</button>`).join("")}</div>
+  </div>
+  <div class="panel">
+    <div class="row"><h3>Budget</h3><span class="val">S$${S.budget}</span></div>
+    <input type="range" id="budget" min="10" max="200" step="5" value="${S.budget}" aria-label="Budget in dollars">
+    <div class="row" style="margin-top:10px"><h3>Time available</h3><span class="val">${S.hours} hours</span></div>
+    <input type="range" id="hours" min="3" max="11" step="1" value="${S.hours}" aria-label="Hours available">
+    <div class="meta">Starting 10:00 from your hotel at Bayfront</div>
+  </div>
+  <div class="panel">
+    <div class="weather">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--route)" stroke-width="2" stroke-linecap="round"><path d="M7 16a4 4 0 010-8 5 5 0 019.6 1.5A3.5 3.5 0 0117 16z"/><path d="M9 19l-1 2M13 19l-1 2M17 19l-1 2"/></svg>
+      <div><div class="big">31°</div><div class="meta">Singapore · Thunderstorms 3–5pm</div></div>
+    </div>
+    <div class="hours" aria-label="Rain chance by hour">${hours}</div>
+  </div>
+  <button class="primary" id="gen" ${S.interests.size?"":"disabled"}>${S.interests.size ? "Create my itinerary" : "Pick at least one interest"}</button>`;
+}
+
+function viewItinerary(){
+  if (!S.itinerary) return `<h2 class="screen-title">Itinerary</h2><div class="empty"><b>No plan yet</b>Choose your interests and budget in Plan to get a day built for you.<br><br><button class="ghost" data-go="plan">Go to Plan</button></div>`;
+  const it = S.itinerary;
+  if (!it.stops.length) return `<h2 class="screen-title">Itinerary</h2><div class="empty"><b>Nothing fits yet</b>Raise the budget or add more hours or interests, then create the plan again.<br><br><button class="ghost" data-go="plan">Adjust plan</button></div>`;
+  return `
+  <h2 class="screen-title">Your day</h2>
+  <p class="sub">Planned around your interests and the afternoon rain.</p>
+  <div class="summary">
+    <div><b>${it.stops.length}</b><small>stops</small></div>
+    <div><b>S$${it.spent.toFixed(0)}</b><small>of S$${S.budget}</small></div>
+    <div><b>${fmt(it.endTime)}</b><small>finish</small></div>
+  </div>
+  <ol class="timeline">
+    ${it.stops.map(s => `
+      <li>
+        <span class="time">${fmt(s.arrive)}</span><span class="pin"></span>
+        <div class="transit">${legSummary(s.leg)}</div>
+        <div class="name">${esc(s.name)}</div>
+        <div class="meta">${s.dur} min · ${s.cost ? "S$"+s.cost : "Free"} · ${s.env}</div>
+        ${s.env!=="outdoor" ? `<span class="tag indoor">${s.env==="indoor"?"Indoor":"Covered"}</span>` : ""}
+        ${s.reasons.map(r => `<span class="tag ${r.cls}">${esc(r.text)}</span>`).join("")}
+      </li>`).join("")}
+  </ol>
+  <button class="primary" id="startTrip">Start trip</button>
+  <div style="height:8px"></div>
+  <button class="ghost" style="width:100%" data-go="plan">Change preferences</button>`;
+}
+
+function mapSvg(leg, stop, pos){
+  const network = Object.values(LINES).map(L =>
+    `<polyline points="${L.stations.map(n => STATIONS[n].join(",")).join(" ")}" fill="none" stroke="${L.color}" stroke-width="3" opacity=".28" stroke-linejoin="round"/>`).join("");
+  const routeSt = new Set(leg.points.filter(p => p.station).map(p => p.station));
+  const dots = Object.keys(STATIONS).map(n => {
+    const [x,y] = STATIONS[n], on = routeSt.has(n);
+    return `<circle cx="${x}" cy="${y}" r="${on?3.2:2.4}" fill="var(--surface)" stroke="${on?'var(--ink)':'var(--muted)'}" stroke-width="1.2"/>`;
+  }).join("");
+  const edges = leg.points.slice(0,-1).map((a,i) => {
+    const b = leg.points[i+1], walk = a.departSeg < 0;
+    return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${edgeColor(leg,i)}" stroke-width="${walk?3:5}" stroke-linecap="round" ${walk?'stroke-dasharray="3 5"':""}/>`;
+  }).join("");
+  let altPreview = "";
+  const d = S.trip.delay;
+  if (d && !d.resolved && d.alt){
+    altPreview = `<polyline points="${d.alt.points.map(p => p.x+","+p.y).join(" ")}" fill="none" stroke="var(--go)" stroke-width="4" stroke-dasharray="6 5" stroke-linecap="round"/>`;
+  }
+  const label = (x,y,t,strong) => `<text x="${x>235?x-5:x+5}" y="${y-5}" text-anchor="${x>235?"end":"start"}" font-size="${strong?8.5:7}" font-weight="${strong?700:500}" fill="${strong?'var(--ink)':'var(--muted)'}" paint-order="stroke" stroke="var(--map-bg)" stroke-width="2.5">${esc(t)}</text>`;
+  let labels = "";
+  if (S.mapLabels) labels = Object.keys(STATIONS).filter(n => !routeSt.has(n)).map(n => label(STATIONS[n][0], STATIONS[n][1], n, false)).join("");
+  labels += leg.points.filter(p => p.station && (S.mapLabels || p.role !== "ride")).map(p => label(p.x, p.y, p.station, true)).join("");
+  const pins = S.itinerary.stops.map(p => `<rect x="${p.x-4}" y="${p.y-4}" width="8" height="8" rx="2" fill="${p===stop?'var(--stop)':'var(--muted)'}" transform="rotate(45 ${p.x} ${p.y})"/>`).join("");
+  return `
+    <svg viewBox="${navViewBox(leg, stop)}" role="img" aria-label="Map of your route to ${esc(stop.short)}">
+      <path d="M0 205 Q120 185 190 206 T300 196 L300 215 L0 215Z" fill="var(--map-water)"/>
+      <path d="M212 196 Q235 180 300 184 L300 205 Q250 208 212 204Z" fill="var(--map-water)"/>
+      <ellipse cx="250" cy="160" rx="24" ry="16" fill="var(--map-park)"/>
+      <ellipse cx="28" cy="46" rx="22" ry="18" fill="var(--map-park)"/>
+      <ellipse cx="120" cy="114" rx="13" ry="10" fill="var(--map-park)"/>
+      ${network}${altPreview}${edges}${dots}${pins}${labels}
+      <text x="${stop.x+6}" y="${stop.y+13}" font-size="9" font-weight="800" fill="var(--stop)" paint-order="stroke" stroke="var(--map-bg)" stroke-width="3">${esc(stop.short)}</text>
+      <circle id="meHalo" cx="${pos.x}" cy="${pos.y}" r="11" fill="var(--route)" opacity=".22"/>
+      <circle id="me" cx="${pos.x}" cy="${pos.y}" r="5.5" fill="var(--route)" stroke="#fff" stroke-width="2.5"/>
+    </svg>`;
+}
+
+/* Added: widen the Navigate map only when a leg goes beyond the central area */
+function navViewBox(leg, stop){
+  const xs = leg.points.map(p => p.x).concat(stop.x), ys = leg.points.map(p => p.y).concat(stop.y);
+  const x0 = Math.min(0, Math.min(...xs)-20), x1 = Math.max(300, Math.max(...xs)+20);
+  const y0 = Math.min(0, Math.min(...ys)-20), y1 = Math.max(215, Math.max(...ys)+20);
+  return `${x0} ${y0} ${x1-x0} ${y1-y0}`;
+}
+
+function stationsPanel(leg, pos){
+  if (leg.mode === "walk") return `<div class="panel"><h3>Stations</h3><div class="meta">This leg is a short walk, so no train is needed.</div></div>`;
+  const P = leg.points;
+  const nextSt = P.slice(pos.i+1).find(p => p.station);
+  const summary = `<div class="stsum">${leg.segments.map(s => lineBadge(LINES[s.line].code)).join("")}
+      <span><b>${esc(leg.board)}</b> to <b>${esc(leg.alight)}</b> · ${leg.stops} stop${leg.stops>1?"s":""}${leg.segments.length>1?` · ${leg.segments.length-1} change`:""}</span></div>
+      ${nextSt ? `<div class="meta" style="margin-top:4px">Next station: <b style="color:var(--ink)">${esc(nextSt.station)}</b></div>` : `<div class="meta" style="margin-top:4px">You've left the station</div>`}`;
+  let list = "";
+  if (S.showStations){
+    const rows = P.map((p,idx) => ({p,idx})).filter(o => o.p.station);
+    list = `<ol class="stlist">${rows.map(({p,idx}) => {
+      const cIn = p.arriveSeg >= 0 ? LINES[leg.segments[p.arriveSeg].line].color : (p.role==="transfer" ? LINES[leg.segments[p.departSeg-1].line].color : "transparent");
+      const cOut = p.departSeg >= 0 ? LINES[leg.segments[p.departSeg].line].color : cIn;
+      const state = idx < pos.i ? "passed" : idx === pos.i ? "passed here" : idx === pos.i+1 ? "next" : "";
+      let note = "";
+      if (p.role === "board") note = `Board towards ${esc(leg.segments[0].towards)}`;
+      if (p.role === "transfer") note = `Change to ${esc(LINES[leg.segments[p.departSeg].line].name)}`;
+      if (p.role === "alight") note = `Get off here`;
+      return `<li class="${state}" style="--cin:${cIn};--c:${p.role==="alight"?cIn:cOut}">
+        <span class="rail"><i></i></span>
+        <span class="txt"><b>${esc(p.station)}</b>${note?`<br><span class="meta">${note}</span>`:""}</span></li>`;
+    }).join("")}</ol>`;
+  }
+  return `<div class="panel">
+    <div class="row"><h3 style="margin:0">Stations on this leg</h3>
+      <button class="ghost" id="toggleStations" aria-expanded="${S.showStations}" style="padding:4px 10px">${S.showStations?"Hide list":"View all"}</button></div>
+    <div style="margin-top:8px">${summary}</div>${list}</div>`;
+}
+
+function viewGo(){
+  if (!S.itinerary || !S.itinerary.stops.length) return `<h2 class="screen-title">Navigate</h2><div class="empty"><b>No trip to guide yet</b>Create an itinerary first, then start the trip here.<br><br><button class="ghost" data-go="plan">Plan a day</button></div>`;
+  if (!S.trip.active) return `<h2 class="screen-title">Navigate</h2><div class="empty"><b>Ready when you are</b>${S.itinerary.stops.length} stops planned, first up: ${esc(S.itinerary.stops[0].short)}.<br><br><button class="primary" id="startTrip">Start trip</button></div>`;
+  const stops = S.itinerary.stops;
+  const {stop, leg, pos, n, remaining} = current();
+  const crowd = crowdLevel(stop), crowdText = ["","Quiet","Moderate","Busy"][crowd];
+  const d = S.trip.delay;
+
+  let alertBlock = "";
+  if (d && !d.resolved){
+    alertBlock = d.alt ? `
+    <div class="panel alert-card" role="alert">
+      <h3>${esc(d.lineName)} delayed ~12 min</h3>
+      <div class="meta">Signal fault ahead. ${altText(d.alt)} saves ${d.saves} min.</div>
+      <div class="btns" style="margin-top:10px"><button class="primary" id="switchRoute" style="padding:10px;width:auto">Switch route</button><button class="ghost" id="keepRoute">Keep waiting</button></div>
+    </div>` : `
+    <div class="panel alert-card" role="alert">
+      <h3>${esc(d.lineName)} delayed ~12 min</h3>
+      <div class="meta">No faster route right now, so staying on this train is quickest.</div>
+      <div class="btns" style="margin-top:10px"><button class="ghost" id="keepRoute">Keep waiting</button></div>
+    </div>`;
+  }
+
+  return `
+  <div class="row" style="margin-top:6px"><h2 class="screen-title" style="margin:0">Stop ${S.trip.leg+1} of ${stops.length}</h2><span class="meta">${S.trip.override?"Alternative route":""}</span></div>
+  <div class="map-wrap" style="margin-top:10px">
+    <div class="offline-banner">Offline. Using saved map, live updates paused.</div>
+    ${mapSvg(leg, stop, pos)}
+    <button class="map-chip" id="toggleLabels" aria-pressed="${S.mapLabels}">Station names</button>
+  </div>
+  ${alertBlock}
+  <div class="panel">
+    <div class="nextleg">
+      <div class="arrow" style="background:${n.color}">${n.kind==="walk" ? walkIcon() : trainIcon()}</div>
+      <div style="flex:1"><div class="ins">${esc(n.title)}</div><div class="meta">${esc(n.detail)}</div></div>
+      <div style="text-align:right"><div class="eta" id="eta">${remaining}</div><div class="meta">min</div></div>
+    </div>
+    <div class="progress"><span id="prog" style="width:${S.trip.progress*100}%"></span></div>
+  </div>
+  ${stationsPanel(leg, pos)}
+  <div class="panel">
+    <div class="row">
+      <div><h3 style="margin:0">Crowd on this route</h3><div class="meta">${S.offline ? "Last known · " : "Live · "}${crowdText}</div></div>
+      <div class="crowd l${crowd}" aria-label="Crowd level ${crowdText}"><i></i><i></i><i></i></div>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>Trip updates</h3>
+    <ul class="feed">${S.trip.feed.slice(0,6).map(f => `<li class="${f.kind}"><span class="ic"></span><div>${esc(f.text)}<time>${f.time}</time></div></li>`).join("")}</ul>
+  </div>
+  ${S.trip.arrived ? `<button class="primary" id="nextLeg">${S.trip.leg < stops.length-1 ? "Head to next stop" : "Finish day"}</button>` : ""}`;
+}
+
+function viewSettings(){
+  const t = (id,label,desc,on) => `<div class="toggle"><div><b>${label}</b><div class="meta">${desc}</div></div><button class="switch" role="switch" id="${id}" aria-checked="${on}" aria-label="${label}"></button></div>`;
+  return `
+  <h2 class="screen-title">Settings</h2>
+  <p class="sub">Devices and offline use</p>
+  <div class="panel">
+    ${t("sWatch","Apple Watch navigation","Directions, stations and wrist taps", S.watchAlerts)}
+    ${t("sOffline","Offline mode","Use the saved map without internet", S.offline)}
+  </div>
+  <div class="panel">
+    <h3>Offline maps</h3>
+    <div class="row"><div><b>Singapore Central + MRT network</b><div class="meta">52 MB · downloaded</div></div><span class="tag why">Ready</span></div>
+  </div>
+  <div class="panel">
+    <h3>Connected devices</h3>
+    <div class="row"><div><b>Apple Watch Series 10</b><div class="meta">Connected via Bluetooth</div></div><span class="tag indoor">Paired</span></div>
+  </div>`;
+}
+
+/* ---------- Journey: station-to-station estimate ---------- */
+const RIDE_MIN = 2, TRANSFER_MIN = 4, WAIT_MIN = 3;
+function stationRoute(a, b){
+  if (!a || !b || a === b) return null;
+  const best = new Map(), prev = new Map(), pq = [];
+  const push = (n, l, c, from) => { const k = n+"|"+l; if (!best.has(k) || c < best.get(k)){ best.set(k,c); prev.set(k,from); pq.push([c,n,l]); } };
+  for (const l of linesAt(a)) push(a, l, 0, null);
+  let finalKey = null;
+  while (pq.length){
+    pq.sort((x,y) => x[0]-y[0]);
+    const [c, n, l] = pq.shift(), k = n+"|"+l;
+    if (c > best.get(k)) continue;
+    if (n === b){ finalKey = k; break; }
+    const arr = LINES[l].stations, i = arr.indexOf(n);
+    if (i > 0) push(arr[i-1], l, c+RIDE_MIN, k);
+    if (i < arr.length-1) push(arr[i+1], l, c+RIDE_MIN, k);
+    for (const l2 of linesAt(n)) if (l2 !== l) push(n, l2, c+TRANSFER_MIN, k);
+  }
+  if (!finalKey) return null;
+  const seq = []; let k = finalKey;
+  while (k){ const [n,l] = k.split("|"); seq.unshift({n,l}); k = prev.get(k); }
+  const segments = [];
+  for (const x of seq){
+    const last = segments[segments.length-1];
+    if (!last || last.line !== x.l) segments.push({line:x.l, stations:[x.n]}); else last.stations.push(x.n);
+  }
+  segments.forEach(sg => {
+    const arr = LINES[sg.line].stations;
+    sg.towards = towardsName(sg.line, arr.indexOf(sg.stations[1]) > arr.indexOf(sg.stations[0]));
+  });
+  const stops = segments.reduce((t, sg) => t + sg.stations.length - 1, 0);
+  const transfers = segments.length - 1;
+  const ride = stops*RIDE_MIN, change = transfers*TRANSFER_MIN;
+  return {segments, stops, transfers, ride, change, wait:WAIT_MIN, total: ride + change + WAIT_MIN,
+          fare: 1.09 + stops*0.1, walk: walkMin(dist(st(a), st(b)))};
+}
+
+function viewJourney(){
+  const names = Object.keys(STATIONS).sort();
+  const r = stationRoute(S.jFrom, S.jTo);
+  const onRoute = new Set(r ? r.segments.flatMap(sg => sg.stations) : []);
+  const network = Object.values(LINES).map(L =>
+    `<polyline points="${L.stations.map(n => STATIONS[n].join(",")).join(" ")}" fill="none" stroke="${L.color}" stroke-width="${r?2.5:3.5}" opacity="${r?.2:.75}" stroke-linejoin="round"/>`).join("");
+  const routeLines = r ? r.segments.map(sg =>
+    `<polyline points="${sg.stations.map(n => STATIONS[n].join(",")).join(" ")}" fill="none" stroke="${LINES[sg.line].color}" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>`).join("") : "";
+  const stns = Object.keys(STATIONS).map(n => {
+    const [x,y] = STATIONS[n];
+    const isFrom = n === S.jFrom, isTo = n === S.jTo, sel = isFrom || isTo;
+    const fill = isFrom ? "var(--go)" : isTo ? "var(--stop)" : "var(--surface)";
+    const strong = sel || onRoute.has(n);
+    return `<g class="stn" data-stn="${esc(n)}" tabindex="0" role="button" aria-pressed="${sel}" aria-label="${esc(n)} station${isFrom?", start":isTo?", destination":""}">
+      <circle class="ring" cx="${x}" cy="${y}" r="9" fill="transparent" stroke="none"/>
+      <circle class="dot" cx="${x}" cy="${y}" r="${sel?5.5:3}" fill="${fill}" stroke="var(--ink)" stroke-width="${sel?2:1.2}"/>
+      <text x="${x>235?x-5:x+5}" y="${y-5}" text-anchor="${x>235?"end":"start"}" font-size="${strong?8:6.8}" font-weight="${strong?800:500}" fill="${strong?'var(--ink)':'var(--muted)'}" paint-order="stroke" stroke="var(--map-bg)" stroke-width="2.5" pointer-events="none">${esc(n)}</text>
+    </g>`;
+  }).join("");
+
+  const hint = !S.jFrom ? "Tap a station on the map to set where you start."
+             : !S.jTo ? `Starting at ${S.jFrom}. Now tap where you're going.`
+             : "Tap another station to start a new journey.";
+  const opt = (sel) => `<option value="">Choose a station</option>` + names.map(n => `<option ${n===sel?"selected":""}>${esc(n)}</option>`).join("");
+
+  let result = "";
+  if (r){
+    const steps = [];
+    r.segments.forEach((sg, i) => {
+      const L = LINES[sg.line], n = sg.stations.length - 1;
+      steps.push(`<li>${lineBadge(L.code)}<div><b>${i===0?"Board":"Change to"} ${esc(L.name)}</b> at ${esc(sg.stations[0])}<br>
+        <span class="meta">Towards ${esc(sg.towards)} · ${n} stop${n>1?"s":""} · ${n*RIDE_MIN} min${n>1?` · via ${esc(sg.stations.slice(1,-1).join(", "))}`:""}</span></div></li>`);
+    });
+    steps.push(`<li><span class="linebadge" style="background:var(--stop)">⏏</span><div><b>Get off at ${esc(S.jTo)}</b></div></li>`);
+    result = `
+    <div class="panel" aria-live="polite">
+      <div class="row">
+        <div>
+          <div class="meta">${esc(S.jFrom)} to ${esc(S.jTo)}</div>
+          <div class="jbig"><b>${r.total}</b><span>min (est.)</span></div>
+        </div>
+        <div style="text-align:right">
+          <div>${r.segments.map(sg => lineBadge(LINES[sg.line].code)).join(" ")}</div>
+          <div class="meta" style="margin-top:4px">Arrive ~${fmt(S.clockMin + r.total)}</div>
+        </div>
+      </div>
+      <div class="jbreak">
+        <div><b>${r.ride} min</b>${r.stops} stop${r.stops>1?"s":""}</div>
+        <div><b>${r.change} min</b>${r.transfers} change${r.transfers===1?"":"s"}</div>
+        <div><b>${r.wait} min</b>Wait</div>
+        <div><b>S$${r.fare.toFixed(2)}</b>Fare</div>
+      </div>
+      <ol class="jsteps">${steps.join("")}</ol>
+      ${r.walk <= r.total + 3 ? `<div class="tag why" style="margin-top:8px">Walking takes about ${r.walk} min, which is ${r.walk <= r.total ? "faster" : "about the same"}</div>` : ""}
+    </div>`;
+  } else if (S.jFrom && S.jTo === null){
+    result = "";
+  }
+
+  return `
+  <h2 class="screen-title">Station to station</h2>
+  <p class="sub">${esc(hint)}</p>
+  <div class="map-wrap jmap">
+    <div class="offline-banner">Offline. Times use the saved timetable.</div>
+    <div class="jscroll">
+    <svg viewBox="${J_X0} 0 ${J_W} 215" style="width:${(J_W/300*100).toFixed(1)}%" role="group" aria-label="MRT map. Select two stations. Scroll sideways for east and west stations.">
+      <rect x="${J_X0}" width="${J_W}" height="215" fill="var(--map-bg)"/>
+      <path d="M${J_X0} 208 L0 205 M300 196 L${J_X0+J_W} 200" stroke="var(--map-water)" stroke-width="14" fill="none"/>
+      <path d="M0 205 Q120 185 190 206 T300 196 L300 215 L0 215Z" fill="var(--map-water)"/>
+      ${network}${routeLines}${stns}
+    </svg>
+    </div>
+  </div>
+  <p class="meta" style="margin:-4px 0 10px">Scroll the map sideways to reach east and west stations like Pasir Ris, Changi Airport and Jurong East.</p>
+  <div class="panel">
+    <div class="pickrow">
+      <label for="jFromSel"><span class="pickdot" style="background:var(--go)"></span>From</label><span></span>
+      <select id="jFromSel">${opt(S.jFrom)}</select>
+      <button class="ghost" id="jSwap" aria-label="Swap start and destination" ${S.jFrom||S.jTo?"":"disabled"}>⇅</button>
+      <label for="jToSel"><span class="pickdot" style="background:var(--stop)"></span>To</label><span></span>
+      <select id="jToSel">${opt(S.jTo)}</select>
+      <button class="ghost" id="jClear" ${S.jFrom||S.jTo?"":"disabled"}>Clear</button>
+    </div>
+  </div>
+  ${result}
+  <p class="meta">Estimates assume ${RIDE_MIN} min between stations, ${TRANSFER_MIN} min per line change and a ${WAIT_MIN} min platform wait.</p>`;
+}
+
+const J_X0 = -262, J_W = 774;
+
+function pickStation(n){
+  if (!S.jFrom || (S.jFrom && S.jTo)){ S.jFrom = n; S.jTo = null; }
+  else if (n === S.jFrom){ S.jFrom = null; }
+  else S.jTo = n;
+  render();
+  const again = document.querySelector(`.stn[data-stn="${CSS.escape(n)}"]`);
+  if (again && document.activeElement === document.body) again.focus({preventScroll:true});
+}
+
+const walkIcon = () => `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="13" cy="4" r="2"/><path d="M9 21l3-7 3 3v4M7 12l3-4 4 1 2 3"/></svg>`;
+const trainIcon = () => `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21l2-4M16 21l-2-4"/></svg>`;
+
+/* ---------- Watch ---------- */
+function renderWatch(){
+  const real = $("#wbody"), tmp = {innerHTML:""};
+  buildWatch(tmp);
+  if (real.dataset.h !== tmp.innerHTML){ real.innerHTML = tmp.innerHTML; real.dataset.h = tmp.innerHTML; bindWatch(); }
+}
+function buildWatch(b){
+  const w = $("#wscreen"), dots = $("#wdots");
+  document.querySelectorAll("[data-wpage]").forEach(x => x.setAttribute("aria-pressed", +x.dataset.wpage === S.watchPage));
+  w.classList.remove("arrived","delay");
+  $("#wclock").textContent = fmt(S.clockMin);
+  dots.innerHTML = "";
+  if (!S.trip.active || !S.itinerary){
+    b.innerHTML = S.dayDone
+      ? `<div class="wsmall">Day complete</div><div class="wins" style="font-size:1.05rem">★ ${S.dayDone} places visited</div><div class="wsmall">See your day on your phone</div>`
+      : `<div class="wsmall">Smart Travel</div><div class="wins">${S.itinerary ? "Trip ready. Start it on your phone." : "Plan your day on your phone."}</div>`;
+    return;
+  }
+  if (!S.watchAlerts){ b.innerHTML = `<div class="wsmall">Navigation off</div><div class="wins">Turn it on in Settings</div>`; return; }
+  const {stop, leg, pos, n, remaining} = current();
+  if (S.trip.arrived){
+    w.classList.add("arrived");
+    const nxt = S.itinerary.stops[S.trip.leg+1];
+    const go = nxt ? `Go to ${esc(nxt.short)}` : "Finish day";
+    if (S.trip.arrivePrompt){
+      b.innerHTML = `<div class="wsmall">You've arrived</div><div class="wins" style="font-size:1rem">${esc(stop.short)}</div>
+        <div class="wprompt">${nxt ? `Continue to ${esc(nxt.short)}? Leave by ${fmt(stop.leave)}.` : "That was your last stop. End the trip?"}</div>
+        <div class="wbtns"><button class="wbtn yes" data-wact="continue">${nxt ? "Continue" : "Finish"}</button><button class="wbtn" data-wact="later">Later</button></div>`;
+    } else {
+      b.innerHTML = `<div class="wsmall">At ${esc(stop.short)}</div><div class="wprompt">Enjoy your visit. Tap when you're ready to move on.</div>
+        <div class="wbtns"><button class="wbtn yes" data-wact="continue">${go}</button></div>`;
+    }
+    return;
+  }
+  const d = S.trip.delay;
+  if (d && !d.resolved){
+    w.classList.add("delay");
+    b.innerHTML = d.alt
+      ? `<div class="wsmall">${esc(LINES[d.line].code)} delayed 12 min</div><div class="wins">Switch route?</div>
+         <div class="wprompt">${esc(altShort(d.alt))}, saves ${d.saves} min</div>
+         <div class="wbtns"><button class="wbtn yes" data-wact="switch">Switch</button><button class="wbtn" data-wact="wait">Wait</button></div>`
+      : `<div class="wsmall">${esc(LINES[d.line].code)} delayed 12 min</div><div class="wins">No faster route</div>
+         <div class="wprompt">Staying on this train is quickest.</div>
+         <div class="wbtns"><button class="wbtn yes" data-wact="wait">OK</button></div>`;
+    return;
+  }
+  dots.innerHTML = [0,1,2].map(i => `<i class="${i===S.watchPage?'on':''}"></i>`).join("");
+  if (S.watchPage === 0){
+    b.innerHTML = `<div class="warrow" style="background:${n.color}">${n.kind==="walk"?walkIcon():trainIcon()}</div>
+      <div class="wins">${esc(n.title)}</div>
+      <div class="wsmall">${n.kind==="train" ? `${esc(n.line.code)} · ${n.left} stop${n.left>1?"s":""} left` : esc(stop.short)}</div>
+      <div class="weta">${remaining} min</div>`;
+  } else if (S.watchPage === 1){
+    if (leg.mode === "walk"){ b.innerHTML = `<div class="wtitle">Stations</div><div class="wins">Walking leg</div><div class="wsmall">No train needed</div>`; return; }
+    const rows = leg.points.map((p,idx) => ({p,idx})).filter(o => o.p.station);
+    let k = rows.findIndex(o => o.idx > pos.i); if (k < 0) k = rows.length;
+    const startK = Math.max(0, Math.min(k-1, rows.length-5));
+    b.innerHTML = `<div class="wtitle">Stations</div><ul class="wst">${rows.slice(startK, startK+5).map(({p,idx}) => {
+      const seg = p.departSeg >= 0 ? p.departSeg : p.arriveSeg;
+      const c = LINES[leg.segments[seg].line].color;
+      const cls = idx <= pos.i ? "passed" : idx === rows[k]?.idx ? "next" : "";
+      const mark = p.role==="transfer" ? " ⇄" : p.role==="alight" ? " ⏏" : "";
+      return `<li class="${cls}" style="--c:${c}"><i></i>${esc(p.station)}${mark}</li>`;
+    }).join("")}</ul>`;
+  } else {
+    const xs = leg.points.map(p => p.x), ys = leg.points.map(p => p.y);
+    const minX = Math.min(...xs)-14, minY = Math.min(...ys)-14;
+    const wv = Math.max(Math.max(...xs)-minX+14, 60), hv = Math.max(Math.max(...ys)-minY+14, 60);
+    const lines = leg.points.slice(0,-1).map((a,i) => { const c = leg.points[i+1];
+      return `<line x1="${a.x}" y1="${a.y}" x2="${c.x}" y2="${c.y}" stroke="${edgeColor(leg,i)}" stroke-width="${Math.max(wv,hv)/28}" stroke-linecap="round" ${a.departSeg<0?`stroke-dasharray="${Math.max(wv,hv)/40} ${Math.max(wv,hv)/25}"`:""}/>`; }).join("");
+    const r = Math.max(wv,hv)/22;
+    b.innerHTML = `<div class="wtitle">${esc(stop.short)} · ${remaining} min</div>
+      <svg viewBox="${minX} ${minY} ${wv} ${hv}" style="width:100%;height:110px" aria-label="Mini route map">
+        ${lines}
+        <circle cx="${stop.x}" cy="${stop.y}" r="${r}" fill="#EE6A6A"/>
+        <circle cx="${pos.x}" cy="${pos.y}" r="${r*1.8}" fill="#5B95F0" opacity=".3"/>
+        <circle cx="${pos.x}" cy="${pos.y}" r="${r}" fill="#fff"/>
+      </svg>`;
+  }
+}
+
+function buzzWatch(){
+  if (!S.watchAlerts) return;
+  const w = $("#watch"); w.classList.remove("buzz"); void w.offsetWidth; w.classList.add("buzz");
+}
+function cycleWatch(){ S.watchPage = (S.watchPage + 1) % 3; renderWatch(); }
+
+let toastT;
+function toast(title, body, badge){
+  $("#toastTitle").textContent = title; $("#toastBody").textContent = body; $("#toastBadge").textContent = badge || "✓";
+  $("#toast").classList.add("show"); clearTimeout(toastT);
+  toastT = setTimeout(() => $("#toast").classList.remove("show"), 3200);
+}
+function addFeed(text, kind){ S.trip.feed.unshift({text, kind:kind||"", time:fmt(S.clockMin)}); }
+
+/* Cheap per-tick update: dot, ETA, clocks, watch */
+function updateLive(){
+  $("#clock").textContent = fmt(S.clockMin);
+  if (S.trip.active && S.itinerary && S.tab === "go"){
+    const {pos, remaining} = current();
+    ["me","meHalo"].forEach(id => { const c = document.getElementById(id); if (c){ c.setAttribute("cx", pos.x); c.setAttribute("cy", pos.y); } });
+    const prog = $("#prog"); if (prog) prog.style.width = (S.trip.progress*100)+"%";
+    const eta = $("#eta"); if (eta) eta.textContent = remaining;
+  }
+  renderWatch();
+}
+
+function tick(){
+  if (!S.trip.active || S.trip.arrived) return;
+  const d = S.trip.delay;
+  let leg = S.trip.override || S.itinerary.stops[S.trip.leg].leg;
+  if (d && !d.resolved){ /* waiting on the platform */ }
+  else if (d && d.resolved === "wait" && S.trip.waitTicks > 0) S.trip.waitTicks--;
+  else S.trip.progress = Math.min(1, S.trip.progress + 1.4 / geom(leg).len);
+  S.clockMin += 0.25;
+
+  const c = current();
+  if (!S.trip.delayShown && !S.trip.override && c.leg.mode === "mrt" && c.pos.i >= 1 && !S.offline){ triggerDelay(); return; }
+  if (S.trip.progress >= 1){ arrive(); return; }
+  if (c.n.key !== S.trip.lastKey){
+    S.trip.lastKey = c.n.key;
+    if (c.n.buzz && !(S.trip.delay && !S.trip.delay.resolved)){ buzzWatch(); addFeed(c.n.title, c.n.key==="al"||c.n.key.startsWith("tr") ? "warn" : ""); }
+    S.watchPage = 0;
+    render(); return;
+  }
+  if (c.pos.i !== S.trip.lastI && S.tab === "go"){ render(); return; }
+  updateLive();
+}
+
+function triggerDelay(){
+  if (!S.trip.active || S.trip.arrived) return;
+  if (S.offline){ toast("No live updates","You're offline, so delays can't be checked","!"); return; }
+  if (S.trip.delay && !S.trip.delay.resolved) return;
+  let {stop, leg, pos} = current();
+  if (leg.mode !== "mrt"){ toast("Walking leg","Delays apply to train legs. Try on another stop.","i"); return; }
+  if (pos.i === 0){ S.trip.progress = (geom(leg).cum[1] + 0.01) / leg.len; pos = posAt(leg, S.trip.progress); }
+  const here = leg.points[pos.i];
+  if (here.departSeg < 0){ toast("You're off the train","Delays no longer affect this leg","i"); return; }
+  const lineKey = leg.segments[here.departSeg].line;
+  const from = {x:here.x, y:here.y, short:here.station};
+  const alt = findRoute(from, stop, lineKey);
+  const remainingNow = Math.ceil(leg.mins*(1-S.trip.progress)) + 12;
+  const good = alt && alt.mins < remainingNow;
+  S.trip.delay = {line:lineKey, lineName:LINES[lineKey].name, alt: good ? alt : null, saves: good ? remainingNow - alt.mins : 0, resolved:null};
+  S.trip.delayShown = true;
+  addFeed(`${LINES[lineKey].name}: about 12 min delay at ${here.station}`, "bad");
+  toast("Delay on your route", good ? "A faster route is available" : "No faster route right now", "!");
+  buzzWatch(); render();
+}
+
+function arrive(){
+  const {stop} = current();
+  S.trip.progress = 1; S.trip.arrived = true; S.trip.arrivePrompt = true;
+  S.clockMin = Math.max(S.clockMin, stop.arrive);
+  addFeed(`Arrived at ${stop.short}`);
+  const nx = S.itinerary.stops[S.trip.leg+1];
+  toast("You've arrived", nx ? `${stop.name}. Continue from your phone or watch.` : stop.name, "📍");
+  buzzWatch(); render();
+}
+
+function startTrip(){
+  S.trip = freshTrip(); S.trip.active = true;
+  S.clockMin = 600; S.watchPage = 0; S.dayDone = 0;
+  addFeed(`Trip started, ${S.itinerary.stops.length} stops today`);
+  if (!S.offline) addFeed("Thunderstorm expected 3–5pm. Indoor stops are scheduled then.", "warn");
+  S.tab = "go"; render();
+  clearInterval(timer); timer = setInterval(tick, 120);
+}
+
+function nextLeg(){
+  const stops = S.itinerary.stops;
+  if (S.trip.leg >= stops.length-1){
+    S.trip.active = false; clearInterval(timer); S.dayDone = stops.length;
+    toast("Day complete", `You visited ${stops.length} places`, "★");
+    S.tab = "itinerary"; render(); return;
+  }
+  S.clockMin = Math.max(S.clockMin, stops[S.trip.leg].leave);
+  const feed = S.trip.feed, shown = S.trip.delayShown;
+  const legIdx = S.trip.leg + 1;
+  S.trip = freshTrip(); Object.assign(S.trip, {active:true, leg:legIdx, feed, delayShown:shown});
+  addFeed(`Heading to ${stops[legIdx].short}`);
+  S.watchPage = 0; render();
+}
+
+function setOffline(on){
+  S.offline = on;
+  if (S.trip.active) addFeed(on ? "Connection lost. Navigating with saved map." : "Back online. Live updates resumed.", on ? "warn" : "");
+  toast(on ? "You're offline" : "Back online", on ? "Saved map keeps tracking your location" : "Live transit updates are on", on ? "!" : "✓");
+  render();
+}
+
+function switchRoute(from){
+  const d = S.trip.delay; if (!d || d.resolved || !d.alt) return;
+  S.trip.override = d.alt; S.trip.progress = 0; d.resolved = "switch"; S.trip.lastKey = "";
+  addFeed(`Switched route${from==="watch" ? " on Apple Watch" : ""}: ${altShort(d.alt)}`);
+  toast("Route switched", `Saves ${d.saves} min${from==="watch" ? " · confirmed on watch" : ""}`); buzzWatch(); S.watchPage = 0; render();
+}
+function keepWaiting(from){
+  const d = S.trip.delay; if (!d || d.resolved) return;
+  d.resolved = "wait"; S.trip.waitTicks = 25;
+  if (from === "watch") addFeed("Kept current route (from Apple Watch)");
+  toast("Staying on this route", "Arrival time includes the delay", "i"); render();
+}
+function bindWatch(){
+  document.querySelectorAll("[data-wact]").forEach(btn => btn.onclick = e => {
+    e.stopPropagation();
+    const a = btn.dataset.wact;
+    if (a === "switch") switchRoute("watch");
+    else if (a === "wait") keepWaiting("watch");
+    else if (a === "continue"){ if (S.trip.arrived) nextLeg(); }
+    else if (a === "later"){ S.trip.arrivePrompt = false; toast("Take your time", "Tap Continue on your watch or phone when ready", "i"); render(); }
+  });
+}
+const watchLocked = () => S.trip.active && (S.trip.arrived || (S.trip.delay && !S.trip.delay.resolved));
+
+/* ---------- Events ---------- */
+function bind(){
+  document.querySelectorAll("[data-int]").forEach(b => b.onclick = () => {
+    const i = b.dataset.int; S.interests.has(i) ? S.interests.delete(i) : S.interests.add(i); render();
+  });
+  const bud = $("#budget"); if (bud) bud.oninput = e => { S.budget = +e.target.value; e.target.previousElementSibling.querySelector(".val").textContent = "S$"+S.budget; };
+  const hrs = $("#hours"); if (hrs) hrs.oninput = e => { S.hours = +e.target.value; e.target.previousElementSibling.querySelector(".val").textContent = S.hours+" hours"; };
+  const gen = $("#gen"); if (gen) gen.onclick = () => {
+    gen.disabled = true; gen.textContent = "Checking weather and transit…";
+    setTimeout(() => { S.itinerary = plan(); S.trip = freshTrip(); clearInterval(timer); S.tab = "itinerary"; render(); }, 900);
+  };
+  document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { S.tab = b.dataset.go; render(); });
+  const stt = $("#startTrip"); if (stt) stt.onclick = startTrip;
+  const sw = $("#switchRoute"); if (sw) sw.onclick = () => switchRoute("phone");
+  const kr = $("#keepRoute"); if (kr) kr.onclick = () => keepWaiting("phone");
+  const nl = $("#nextLeg"); if (nl) nl.onclick = nextLeg;
+  document.querySelectorAll(".stn").forEach(g => {
+    g.onclick = () => pickStation(g.dataset.stn);
+    g.onkeydown = e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); pickStation(g.dataset.stn); } };
+  });
+  const jf = $("#jFromSel"); if (jf) jf.onchange = e => { S.jFrom = e.target.value || null; if (S.jFrom === S.jTo) S.jTo = null; render(); };
+  const jt = $("#jToSel"); if (jt) jt.onchange = e => { S.jTo = e.target.value || null; if (S.jFrom === S.jTo) S.jFrom = null; render(); };
+  const js = $("#jSwap"); if (js) js.onclick = () => { [S.jFrom, S.jTo] = [S.jTo, S.jFrom]; render(); };
+  const jc = $("#jClear"); if (jc) jc.onclick = () => { S.jFrom = S.jTo = null; render(); };
+  const tl = $("#toggleLabels"); if (tl) tl.onclick = () => { S.mapLabels = !S.mapLabels; render(); };
+  const ts = $("#toggleStations"); if (ts) ts.onclick = () => { S.showStations = !S.showStations; render(); };
+  const so = $("#sOffline"); if (so) so.onclick = () => setOffline(!S.offline);
+  const sww = $("#sWatch"); if (sww) sww.onclick = () => { S.watchAlerts = !S.watchAlerts; render(); };
+}
+
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { S.tab = b.dataset.tab; render(); });
+document.querySelectorAll("[data-wpage]").forEach(b => b.onclick = () => { S.watchPage = +b.dataset.wpage; renderWatch(); });
+$("#wscreen").onclick = () => { if (!watchLocked()) cycleWatch(); };
+$("#wscreen").onkeydown = e => { if (e.target !== e.currentTarget) return; if (e.key === "Enter" || e.key === " "){ e.preventDefault(); if (!watchLocked()) cycleWatch(); } };
+$("#crown").onclick = () => { if (!watchLocked()) cycleWatch(); };
+const needTrip = () => { toast("Start a trip first","Plan a day, then tap Start trip","i"); };
+$("#dDelay").onclick = () => S.trip.active ? triggerDelay() : needTrip();
+$("#dCrowd").onclick = () => {
+  if (!S.trip.active) return needTrip();
+  if (S.offline){ toast("No live updates","Crowd data needs a connection","!"); return; }
+  S.trip.crowdBoost = Math.min(2, S.trip.crowdBoost+1);
+  addFeed("Crowds building on your route", "warn"); render();
+};
+$("#dOffline").onclick = () => setOffline(!S.offline);
+$("#dArrive").onclick = () => {
+  if (!S.trip.active) return needTrip();
+  if (S.trip.arrived){ toast("Already here","Tap Head to next stop on the phone","i"); return; }
+  if (S.trip.delay && !S.trip.delay.resolved) S.trip.delay.resolved = "wait";
+  arrive();
+};
+$("#dTheme").onclick = () => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+};
+$("#dReset").onclick = () => { clearInterval(timer); S = initial(); render(); };
+
+render();
+})();
+</script>
+</body>
+</html>
