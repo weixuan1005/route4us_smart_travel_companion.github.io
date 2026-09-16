@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Smart Travel Companion — Prototype</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -41,7 +41,8 @@ button{cursor:pointer}
 .intro p{margin:0;color:var(--muted);font-size:1.05rem}
 
 .stage{display:grid;grid-template-columns:auto 1fr;gap:40px;align-items:start}
-@media (max-width:900px){.stage{grid-template-columns:1fr;justify-items:center}}
+@media (max-width:900px){.stage{grid-template-columns:minmax(0,1fr);justify-items:center}}
+.side{min-width:0}
 
 /* Phone */
 .phone{width:360px;max-width:100%;height:740px;background:var(--phone);border-radius:52px;padding:12px;box-shadow:0 30px 60px -30px rgba(20,33,61,.5)}
@@ -209,6 +210,29 @@ input[type=range]{width:100%;accent-color:var(--route)}
 .wtitle{font-size:.7rem;color:#A7B0C4;margin-bottom:2px}
 .jscroll{overflow:auto;max-height:340px;overscroll-behavior:contain;cursor:grab}
 .jscroll.dragging{cursor:grabbing}
+.jexpand{top:10px;bottom:auto;z-index:2}
+.jfull{position:fixed;inset:0;z-index:50;height:100vh;height:100dvh;background:var(--surface);color:var(--ink);font-family:var(--font);display:flex;flex-direction:column;overflow:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+.jfull[hidden]{display:none}
+.jfull-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.jfull-head > b{font-size:1.05rem}
+.jfull-head .ghost{min-width:44px;min-height:44px;padding:0 12px;font-size:1.25rem;line-height:1;border-radius:14px}
+.jfull-head .ghost:disabled{opacity:.4}
+.jzoom{display:flex;align-items:center;gap:6px}
+.jfull-scroll{flex:1;min-height:0;max-height:none;background:var(--map-bg);touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch}
+.jfull-scroll svg{display:block;max-width:none}
+.jfull-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--line);font-size:.85rem;min-height:74px}
+.jfull-time{text-align:right;white-space:nowrap}
+.jfull-time b{font-size:1.7rem;letter-spacing:-.02em}
+.jfull .stn,.jmap .stn,.jscroll,.jfull button,.map-chip{-webkit-tap-highlight-color:transparent}
+.jfull .stn{cursor:pointer}
+.jfull polyline,.jfull .stn circle{vector-effect:non-scaling-stroke}
+.jfull .stn text{font-size:calc(8px * var(--u));stroke-width:calc(3px * var(--u))}
+.jfull .stn text[font-weight="800"]{font-size:calc(10.5px * var(--u))}
+.jfull .stn .dot{r:calc(4px * var(--u))}
+.jfull .stn[aria-pressed="true"] .dot{r:calc(7px * var(--u))}
+.jfull .stn .ring{r:calc(13px * var(--u))}
+.jfull .stn:focus{outline:none}
+.jfull .stn:focus-visible .ring{stroke:var(--route);stroke-width:2}
 .map-wrap .jscroll svg{display:block;max-width:none;width:auto;height:auto}
 .jmap .stn{cursor:pointer}
 .jmap .stn:focus{outline:none}
@@ -317,6 +341,7 @@ input[type=range]{width:100%;accent-color:var(--route)}
     </div>
   </div>
 </div>
+<div class="jfull" id="jfull" role="dialog" aria-modal="true" aria-label="Enlarged MRT map" hidden></div>
 <script>
 (function(){
 "use strict";
@@ -424,7 +449,7 @@ const freshTrip = () => ({active:false, leg:0, progress:0, override:null, delay:
 const initial = () => ({
   tab:"plan", budget:80, hours:7, interests:new Set(["food","culture"]),
   itinerary:null, trip:freshTrip(), offline:false, watchAlerts:true, clockMin:600,
-  mapLabels:false, showStations:true, watchPage:0, dayDone:0, jFrom:null, jTo:null, jScroll:null, jFocus:null
+  mapLabels:false, showStations:true, watchPage:0, dayDone:0, jFrom:null, jTo:null, jScroll:null, jFocus:null, jFull:false, jZoom:1.8, jFullCenter:null
 });
 let S = initial();
 let timer = null;
@@ -597,13 +622,14 @@ function render(){
   $("#app").innerHTML = views[S.tab]();
   bind();
   if (S.trip.active) S.trip.lastI = current().pos.i;
-  const js = $(".jscroll");
+  const js = $("#jInline");
   if (js){
     if (S.jFocus){ scrollJourneyTo(js, S.jFocus); S.jFocus = null; }
     else if (S.jScroll !== null){ js.scrollLeft = S.jScroll[0]; js.scrollTop = S.jScroll[1]; }
     else scrollJourneyTo(js, "City Hall");
     js.onscroll = () => { S.jScroll = [js.scrollLeft, js.scrollTop]; };
   }
+  renderJourneyFull();
   updateLive();
 }
 
@@ -904,14 +930,15 @@ function viewJourney(){
   <p class="sub">${esc(hint)}</p>
   <div class="map-wrap jmap">
     <div class="offline-banner">Offline. Times use the saved timetable.</div>
-    <div class="jscroll">
+    <button class="map-chip jexpand" id="jExpand" aria-label="Enlarge MRT map">⤢ Enlarge</button>
+    <div class="jscroll" id="jInline" title="Tap an empty spot to enlarge">
     <svg viewBox="${J.x} ${J.y} ${J.w} ${J.h}" width="${Math.round(J.w*J_PX)}" height="${Math.round(J.h*J_PX)}" role="group" aria-label="MRT map of Singapore. Select two stations. Scroll to move around the island.">
       <rect x="${J.x}" y="${J.y}" width="${J.w}" height="${J.h}" fill="var(--map-bg)"/>
       ${network}${routeLines}${stns}
-    </svg>
+    </svg>${(journeyInner = network + routeLines + stns, "")}
     </div>
   </div>
-  <p class="meta" style="margin:6px 0 10px">All ${Object.keys(STATIONS).length} MRT stations are on the map. Drag or scroll to reach places like Woodlands, Punggol, Changi Airport and Tuas.</p>
+  <p class="meta" style="margin:6px 0 10px">All ${Object.keys(STATIONS).length} MRT stations are on the map. Drag or scroll to reach places like Woodlands, Punggol, Changi Airport and Tuas. Tap an empty spot on the map, or Enlarge, to open it full screen. Pinch or use + and − to zoom.</p>
   <div class="panel">
     <div class="pickrow">
       <label for="jFromSel"><span class="pickdot" style="background:var(--go)"></span>From</label><span></span>
@@ -934,6 +961,132 @@ function scrollJourneyTo(js, n){
   const [sx, sy] = STATIONS[n];
   js.scrollLeft = (sx - J.x)*J_PX - js.clientWidth/2;
   js.scrollTop = (sy - J.y)*J_PX - js.clientHeight/2;
+}
+
+/* Added: full-screen, zoomable MRT map */
+let journeyInner = "";
+const J_ZOOMS = [1.07, 1.4, 1.8, 2.4, 3.2];
+function renderJourneyFull(){
+  const ov = $("#jfull");
+  const open = S.tab === "journey" && S.jFull;
+  if (!open){ if (!ov.hidden){ ov.hidden = true; ov.innerHTML = ""; document.documentElement.style.overflow = ""; } return; }
+  const px = S.jZoom;
+  const r = stationRoute(S.jFrom, S.jTo);
+  const status = r
+    ? `<div><b>${esc(S.jFrom)} → ${esc(S.jTo)}</b><div class="meta">${r.segments.map(sg => lineBadge(LINES[sg.line].code)).join(" ")} ${r.stops} stops · ${r.transfers} change${r.transfers===1?"":"s"}</div></div>
+       <div class="jfull-time"><b>${r.total}</b> min</div>`
+    : `<div class="meta">${!S.jFrom ? "Tap a station to set where you start." : `From <b style="color:var(--ink)">${esc(S.jFrom)}</b>. Now tap where you're going.`}</div>`;
+  ov.hidden = false;
+  ov.innerHTML = `
+    <div class="jfull-head">
+      <b>MRT map</b>
+      <div class="jzoom" role="group" aria-label="Zoom">
+        <button class="ghost" id="jZoomOut" aria-label="Zoom out" ${S.jZoom <= Z_MIN + 0.001 ? "disabled" : ""}>−</button>
+        <span class="meta" id="jZoomPct" style="min-width:3.2em;text-align:center">${Math.round(px/J_PX*100)}%</span>
+        <button class="ghost" id="jZoomIn" aria-label="Zoom in" ${S.jZoom >= Z_MAX - 0.001 ? "disabled" : ""}>+</button>
+      </div>
+      <button class="ghost" id="jFullClose" aria-label="Close enlarged map">✕</button>
+    </div>
+    <div class="jscroll jfull-scroll" id="jFullScroll">
+      <svg class="jmap" style="--u:${(1/px).toFixed(4)}" viewBox="${J.x} ${J.y} ${J.w} ${J.h}" width="${Math.round(J.w*px)}" height="${Math.round(J.h*px)}" role="group" aria-label="Enlarged MRT map of Singapore. Select two stations.">
+        <rect x="${J.x}" y="${J.y}" width="${J.w}" height="${J.h}" fill="var(--map-bg)"/>
+        ${journeyInner}
+      </svg>
+    </div>
+    <div class="jfull-foot" aria-live="polite">${status}
+      ${r ? `<button class="primary" id="jFullDone" style="width:auto;padding:10px 14px">Details</button>` : ""}
+    </div>`;
+  const sc = $("#jFullScroll");
+  const center = S.jFullCenter || (S.jTo || S.jFrom ? STATIONS[S.jTo || S.jFrom] : STATIONS["City Hall"]);
+  sc.scrollLeft = (center[0] - J.x)*px - sc.clientWidth/2;
+  sc.scrollTop = (center[1] - J.y)*px - sc.clientHeight/2;
+  S.jFullCenter = center;
+  sc.onscroll = () => { const z = S.jZoom; S.jFullCenter = [(sc.scrollLeft + sc.clientWidth/2)/z + J.x, (sc.scrollTop + sc.clientHeight/2)/z + J.y]; };
+  sc.onwheel = e => { if (!e.ctrlKey) return; e.preventDefault(); zoomJourney(e.deltaY < 0 ? 1 : -1); };
+  enableDrag(sc);
+  enablePinch(sc);
+  bindStations(ov);
+  document.documentElement.style.overflow = "hidden";
+  $("#jZoomIn").onclick = () => zoomJourney(1);
+  $("#jZoomOut").onclick = () => zoomJourney(-1);
+  $("#jFullClose").onclick = closeJourneyFull;
+  const done = $("#jFullDone"); if (done) done.onclick = () => { closeJourneyFull(); const p = $("#app .jbig"); if (p) p.scrollIntoView({block:"center"}); };
+}
+const Z_MIN = J_ZOOMS[0], Z_MAX = 4;
+function zoomJourney(dir){
+  const sc = $("#jFullScroll"); if (!sc) return;
+  applyZoom(S.jZoom * (dir > 0 ? 1.35 : 1/1.35), sc.clientWidth/2, sc.clientHeight/2);
+}
+/* Change zoom without rebuilding the map; (fx, fy) is the point under the fingers, relative to the map box */
+function applyZoom(px, fx, fy){
+  const sc = $("#jFullScroll"); if (!sc) return;
+  px = Math.min(Z_MAX, Math.max(Z_MIN, px));
+  const old = S.jZoom;
+  const mx = (sc.scrollLeft + fx)/old, my = (sc.scrollTop + fy)/old;
+  const svg = sc.querySelector("svg");
+  svg.setAttribute("width", Math.round(J.w*px)); svg.setAttribute("height", Math.round(J.h*px));
+  svg.style.setProperty("--u", (1/px).toFixed(4));
+  S.jZoom = px;
+  sc.scrollLeft = mx*px - fx; sc.scrollTop = my*px - fy;
+  S.jFullCenter = [(sc.scrollLeft + sc.clientWidth/2)/px + J.x, (sc.scrollTop + sc.clientHeight/2)/px + J.y];
+  const pct = $("#jZoomPct"); if (pct) pct.textContent = Math.round(px/J_PX*100) + "%";
+  $("#jZoomOut").disabled = px <= Z_MIN + 0.001;
+  $("#jZoomIn").disabled = px >= Z_MAX - 0.001;
+}
+/* Pinch to zoom: Safari gesture events on iPhone/iPad, two-pointer pinch elsewhere */
+function enablePinch(sc){
+  const box = () => sc.getBoundingClientRect();
+  if ("ongesturestart" in window){
+    let z0 = 1;
+    sc.addEventListener("gesturestart", e => { e.preventDefault(); z0 = S.jZoom; });
+    sc.addEventListener("gesturechange", e => { e.preventDefault(); const b = box(); applyZoom(z0 * e.scale, e.clientX - b.left, e.clientY - b.top); });
+    sc.addEventListener("gestureend", e => e.preventDefault());
+    return;
+  }
+  const pts = new Map(); let start = null;
+  const two = () => { const [a, b] = [...pts.values()]; return {d: Math.hypot(a.x-b.x, a.y-b.y), x:(a.x+b.x)/2, y:(a.y+b.y)/2}; };
+  sc.addEventListener("pointerdown", e => { if (e.pointerType !== "touch") return; pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); if (pts.size === 2){ start = {...two(), z:S.jZoom}; } });
+  sc.addEventListener("pointermove", e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if (pts.size === 2 && start){ const t = two(), b = box(); applyZoom(start.z * t.d / start.d, t.x - b.left, t.y - b.top); }
+  });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) start = null; };
+  sc.addEventListener("pointerup", up); sc.addEventListener("pointercancel", up);
+}
+function openJourneyFull(){
+  S.jFull = true; S.jFullCenter = null;
+  const js = $("#jInline");
+  if (js) S.jFullCenter = [(js.scrollLeft + js.clientWidth/2)/J_PX + J.x, (js.scrollTop + js.clientHeight/2)/J_PX + J.y];
+  renderJourneyFull();
+  const c = $("#jFullClose"); if (c) c.focus({preventScroll:true});
+}
+function closeJourneyFull(){
+  S.jFull = false; renderJourneyFull();
+  const b = $("#jExpand"); if (b) b.focus({preventScroll:true});
+}
+function enableDrag(jsc){
+  let drag = null;
+  jsc.onpointerdown = e => { if (e.pointerType !== "mouse") return; drag = {x:e.clientX, y:e.clientY, l:jsc.scrollLeft, t:jsc.scrollTop, moved:false}; };
+  jsc.onpointermove = e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) > 5){ drag.moved = true; jsc.classList.add("dragging"); }
+    if (drag.moved){ jsc.scrollLeft = drag.l - dx; jsc.scrollTop = drag.t - dy; }
+  };
+  const end = () => { if (drag && drag.moved) jsc.dataset.justDragged = "1"; drag = null; jsc.classList.remove("dragging"); };
+  jsc.onpointerup = end; jsc.onpointerleave = end;
+}
+function bindStations(root){
+  root.querySelectorAll(".stn").forEach(g => {
+    g.onclick = e => {
+      e.stopPropagation();
+      const sc = g.closest(".jscroll");
+      if (sc && sc.dataset.justDragged){ delete sc.dataset.justDragged; return; }
+      pickStation(g.dataset.stn);
+    };
+    g.onkeydown = e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); pickStation(g.dataset.stn); } };
+  });
 }
 
 function pickStation(n){
@@ -1179,23 +1332,13 @@ function bind(){
   const sw = $("#switchRoute"); if (sw) sw.onclick = () => switchRoute("phone");
   const kr = $("#keepRoute"); if (kr) kr.onclick = () => keepWaiting("phone");
   const nl = $("#nextLeg"); if (nl) nl.onclick = nextLeg;
-  const jsc = $(".jscroll");
+  const jsc = $("#jInline");
   if (jsc){
-    let drag = null;
-    jsc.onpointerdown = e => { if (e.pointerType !== "mouse") return; drag = {x:e.clientX, y:e.clientY, l:jsc.scrollLeft, t:jsc.scrollTop, moved:false}; };
-    jsc.onpointermove = e => {
-      if (!drag) return;
-      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-      if (!drag.moved && Math.hypot(dx, dy) > 5){ drag.moved = true; jsc.classList.add("dragging"); }
-      if (drag.moved){ jsc.scrollLeft = drag.l - dx; jsc.scrollTop = drag.t - dy; }
-    };
-    const end = () => { if (drag && drag.moved) jsc.dataset.justDragged = "1"; drag = null; jsc.classList.remove("dragging"); };
-    jsc.onpointerup = end; jsc.onpointerleave = end;
+    enableDrag(jsc);
+    jsc.onclick = () => { if (jsc.dataset.justDragged){ delete jsc.dataset.justDragged; return; } openJourneyFull(); };
+    bindStations($("#app"));
   }
-  document.querySelectorAll(".stn").forEach(g => {
-    g.onclick = () => { if (jsc && jsc.dataset.justDragged){ delete jsc.dataset.justDragged; return; } pickStation(g.dataset.stn); };
-    g.onkeydown = e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); pickStation(g.dataset.stn); } };
-  });
+  const jx = $("#jExpand"); if (jx) jx.onclick = openJourneyFull;
   const jf = $("#jFromSel"); if (jf) jf.onchange = e => { S.jFrom = e.target.value || null; if (S.jFrom === S.jTo) S.jTo = null; S.jFocus = S.jFrom; render(); };
   const jt = $("#jToSel"); if (jt) jt.onchange = e => { S.jTo = e.target.value || null; if (S.jFrom === S.jTo) S.jFrom = null; S.jFocus = S.jTo; render(); };
   const js = $("#jSwap"); if (js) js.onclick = () => { [S.jFrom, S.jTo] = [S.jTo, S.jFrom]; render(); };
@@ -1210,6 +1353,7 @@ document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { S.tab
 document.querySelectorAll("[data-wpage]").forEach(b => b.onclick = () => { S.watchPage = +b.dataset.wpage; renderWatch(); });
 $("#wscreen").onclick = () => { if (!watchLocked()) cycleWatch(); };
 $("#wscreen").onkeydown = e => { if (e.target !== e.currentTarget) return; if (e.key === "Enter" || e.key === " "){ e.preventDefault(); if (!watchLocked()) cycleWatch(); } };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && S.jFull) closeJourneyFull(); });
 $("#crown").onclick = () => { if (!watchLocked()) cycleWatch(); };
 const needTrip = () => { toast("Start a trip first","Plan a day, then tap Start trip","i"); };
 $("#dDelay").onclick = () => S.trip.active ? triggerDelay() : needTrip();
